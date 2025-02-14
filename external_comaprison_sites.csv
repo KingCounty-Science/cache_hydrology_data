@@ -1,0 +1,11 @@
+site, site_sql_id, parameter
+USGS Cedar River at Renton, 12119000, "discharge, stage"
+USGS Issaquah Creek at Hobart, 12120600, "discharge, stage"
+USGS Issaquah Creek at Mouth, 12121600, "discharge, stage"
+USGS Snoqualmie River at Snoqualmie, 12144500, "discharge, stage"
+USGS Snoqualmie River at Carnation, 12149000, "discharge, stage"
+USGS Snoqualmie River at Duvall, 12150400, "discharge, stage"
+USGS Raging River near Fall City, 12145500, "discharge, stage"
+USGS Green River at Auburn, 12113000, "discharge, stage"
+USGS Green River at Palmer Purification Plant, 12106700, "discharge, stage"
+USGS Swannanoa River at Biltmore NC, 0345100, "discharge, stage"
