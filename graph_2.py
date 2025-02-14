@@ -75,6 +75,7 @@ color_map = {
     "summer_season_7q" : r"rgba(204, 204, 204, 0.6)",
 
     "field_observation" : r"rgb(136, 136, 136)",
+    "dry_indicator": r'#AB63FA',
     # Add more mappings as needed
     #'north_seidel_creek': r'#EF553B',
     #'south_seidel_creek': r'#FFA15A',
@@ -158,6 +159,7 @@ def parameter_graph(df, site_code, site_name, parameter, comparison_site, compar
     chart_title = f"{site_name.replace('_', ' ')} {(derived_parameter.replace('_', ' '))} {dt.datetime.strftime(df['datetime'].min(), '%Y-%m-%d')} to {dt.datetime.strftime(df['datetime'].max(), '%Y-%m-%d')}"
     title_x = 0.5
     plot_background_color = 'rgba(0,0,0,0)' #'rgba(0,0,0,0)' clearn
+    
     subplot_titles = subplot_titles if show_subplot_titles else None
 
    
@@ -257,7 +259,18 @@ def parameter_graph(df, site_code, site_name, parameter, comparison_site, compar
                 y=df.loc[:, f"comparison"],
                 line=dict(color=color_map.get(f"comparison", 'black'), width = 5),
                 name=f"comparison ({comparison_site} {comparison_parameter})",showlegend=True,),row=row_count, col=1, secondary_y=comparison_axis),
-         
+    # dry indicator
+    if f"dry_indicator" in df.columns and data_axis != "none":
+        
+        df.loc[df['dry_indicator'] == "dry indicator", "dry_indicator"] = df['data'].min()
+        df.loc[df['dry_indicator'] == " ", "dry_indicator"] =  np.nan # graph dry data is data min for visualization
+        fig.add_trace(go.Scatter(
+                x=df.loc[:, "datetime"], # 1 is graph if dry 0 is graph if not dry
+                y=df.loc[:, f"dry_indicator"],
+                line=dict(color=color_map.get(f"dry_indicator", 'black'), width = 5),
+                name=f"dry indicator",showlegend=True,),row=row_count, col=1, secondary_y=data_axis),
+       
+        print(df)
     def annotations(obs):
             row_count = 1
             annotation_x = 0.00 #0.05 # allows offset for when year is displatyed on axis
@@ -333,7 +346,7 @@ def parameter_graph(df, site_code, site_name, parameter, comparison_site, compar
             
               # annotation 
             obs_df = df.dropna(subset=[f"{obs}"]).copy() # this solves the Try using .loc[row_indexer,col_indexer] = value instead as obs_df is a slice
-            obs_df['RatingNumber'] = obs_df['RatingNumber'].replace('NONE', '')
+            obs_df['rating_number'] = obs_df['rating_number'].replace('NONE', '')
             obs_df['q_offset'] = obs_df['q_offset'].replace(np.nan, '')
             obs_df = obs_df.sort_values(by='datetime', ascending=True)
             if obs_df.shape[0] > 0:
@@ -344,7 +357,7 @@ def parameter_graph(df, site_code, site_name, parameter, comparison_site, compar
 
                 # rating
                 # qm: {obs_df['observation_number'].iloc[0]}
-                fig.add_annotation(text=f"rating: {obs_df['RatingNumber'].iloc[0]}",
+                fig.add_annotation(text=f"rating: {obs_df['rating_number'].iloc[0]}",
                         xref="x domain", yref="y domain",
                         x=annotation_x, y=annotation_y, showarrow=False, row=row_count, col=1, secondary_y=False,)
                 
@@ -366,7 +379,7 @@ def parameter_graph(df, site_code, site_name, parameter, comparison_site, compar
                 #       x=annotation_x+.95, y=annotation_y, showarrow=False, row=row_count, col=1, secondary_y=False,)
 
                 # {obs_df['observation_number'].iloc[-1]} 
-                fig.add_annotation(text=f"rating: {obs_df['RatingNumber'].iloc[-1]}",
+                fig.add_annotation(text=f"rating: {obs_df['rating_number'].iloc[-1]}",
                         xref="x domain", yref="y domain",
                        x=annotation_x+.95, y=annotation_y, showarrow=False, row=row_count, col=1, secondary_y=False,)
                 

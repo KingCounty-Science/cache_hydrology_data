@@ -217,8 +217,8 @@ def excel_export(project, site_list, start_date, end_date):
     #all_df.py_tocsv().save_as(records=all_df.to_dict(orient='records'), dest_file_name=r"W:/STS/hydro/GAUGE/Temp/Ian's Temp/taylor_creek.xlsx")
     #all_df.to_excel(, index=False)
     
-project = "Taylor Creek"
-site_list = ["TAY_6", "TAY_1", "TAY_7E", "TAY_5", "TAY_3", "TAY_8"]
-start_date = "01/01/2023 0:00" #"%m/%d/%Y %H:%M"
-end_date = "03/01/2024 0:00" #"%m/%d/%Y %H:%M"
+project = "Lones"
+site_list = ["Lones_02", "Lones_06", "Lones_13", "Lones_14"]
+start_date = "01/01/2021 0:00" #"%m/%d/%Y %H:%M"
+end_date = "06/01/2024 0:00" #"%m/%d/%Y %H:%M"
 #excel_export(project, site_list, start_date, end_date)

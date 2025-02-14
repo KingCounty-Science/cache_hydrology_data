@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objs as go
 import numpy as np
 from plotly.subplots import make_subplots
-
+from scipy.signal import find_peaks
 
 color_map = {
     'north_seidel_creek': r'#EF553B',
@@ -333,7 +333,7 @@ def cache_comparison_interpolation(df, site, site_sql_id, parameter, start_date,
         # rolling sum
         #df['rolling_sum'] = df['companion'].rolling(window=3, min_periods=1).sum()
         #df = df.sort_values(by=['c_relative_water_year', 'c_relative_month', "datetime"], ascending=True)
-        #df['rolling_sum'] = df.groupby(['c_relative_water_year'])['comparison'].apply(lambda x: x.cumsum())
+        df['c_rolling_sum_relative_water_year'] = df.groupby(['c_relative_water_year'])['comparison'].apply(lambda x: x.cumsum())
         #df['mean_rolling_sum'] = df.groupby(['day'])['rolling_sum'].transform('mean')
 
         #df = df.sort_values(["watershed", "water_year", 'datetime'], ascending=True)
@@ -343,44 +343,158 @@ def cache_comparison_interpolation(df, site, site_sql_id, parameter, start_date,
        
         # this works the best so far because anything at day resolution cuts off peaks 
         # sort by average parameter then month
+        # peaks
+        from scipy.signal import find_peaks
+        """# Find peaks
+        peaks, properties = find_peaks(df['corrected_data'], prominence=True)
+        df['is_peak'] = False
+        df.loc[peaks, 'is_peak'] = True
+
+        # Add a column for peak prominence
+        df['peak_prominence'] = 0
+        df.loc[peaks, 'peak_prominence'] = properties['prominences']
+        """
+        #df = df.sort_values([f"datetime"], ascending=True)
+        peaks, properties = find_peaks(df['corrected_data'], prominence=True)
+
+        # Create a column to mark peaks
+        df['is_peak'] = False
+        df.loc[peaks, 'is_peak'] = True
+
+        # Add a column for peak prominence
+        df['peak_prominence'] = np.nan
+        df.loc[peaks, 'peak_prominence'] = properties['prominences']
+
+        # Create columns to mark left and right tails
+        df['tail'] = 'not a tail'
+
+        # Iterate through each peak
+        for peak, left_base, right_base in zip(peaks, properties['left_bases'], properties['right_bases']):
+            df.loc[left_base:peak, 'tail'] = 'left tail'
+            df.loc[peak:right_base, 'tail'] = 'right tail'
+
+
+        """ peaks, properties = find_peaks(df['comparison'], prominence=True)
+        df['c_is_peak'] = False
+        df.loc[peaks, 'c_is_peak'] = True
+
+        # Add a column for peak prominence
+        df['c_peak_prominence'] = 0
+        df.loc[peaks, 'c_peak_prominence'] = properties['prominences'] """
+    
+        peaks, properties = find_peaks(df['comparison'], prominence=True)
+
+        # Create a column to mark peaks
+        df['c_is_peak'] = False
+        df.loc[peaks, 'c_is_peak'] = True
+
+        # Add a column for peak prominence
+        df['c_peak_prominence'] = np.nan
+        df.loc[peaks, 'c_peak_prominence'] = properties['prominences']
+
+        # Create columns to mark left and right tails
+        df['c_tail'] = 'not a tail'
+
+        # Iterate through each peak
+        for peak, left_base, right_base in zip(peaks, properties['left_bases'], properties['right_bases']):
+            df.loc[left_base:peak, 'c_tail'] = 'left tail'
+            df.loc[peak:right_base, 'c_tail'] = 'right tail'
         
-        # this actually worked the best
-        ### difference
-        df["difference"] = df['corrected_data'].diff().round(2)
-        df["c_difference"] = df['comparison'].diff().round(2)
-
-        df.loc[df["difference"] > 0, "rise_fall"] = 1
-        df.loc[df["difference"] < 0, "rise_fall"] = -1
-        df.loc[df["difference"] == 0, "rise_fall"] = 0
-
-        df.loc[df["c_difference"] > 0, "c_rise_fall"] = 1
-        df.loc[df["c_difference"] < 0, "c_rise_fall"] = -1
-        df.loc[df["c_difference"] == 0, "c_rise_fall"] = 0
-
-        df["difference"] = df["difference"].round(2)
-        df["c_difference"] = df["c_difference"].round(2)
-
-       
-        #set estimate to numeric
         df['estimate'] = pd.to_numeric(df['estimate'], errors='coerce')
         # set estimate to true
         df.loc[pd.isna(df["data"]), 'estimate'] = 1
         # delete estimated data
         df.loc[(df['estimate'].isnull() | df['estimate'] == 1), 'data'] = np.nan
         df.loc[(df['estimate'].isnull() | df['estimate'] == 1), 'corrected_data'] = np.nan
+     
+        df = df.sort_values([f"datetime"], ascending=True)
+        # Fill NaN values where 'tail' is 'right_tail' using backward fill
+        df.loc[(df['tail'] == 'right tail'), 'peak_prominence'] = df.loc[(df['tail'] == 'right tail'), 'peak_prominence'].bfill()
+
+        # Fill NaN values where 'c_tail' is 'right_tail' using backward fill
+        df.loc[(df['c_tail'] == 'right tail'), 'c_peak_prominence'] = df.loc[(df['c_tail'] == 'right tail'), 'c_peak_prominence'].bfill()
+
+        # Fill NaN values where 'tail' is not 'not a tail' using forward fill
+        df.loc[(df['tail'] != 'not a tail'), 'peak_prominence'] = df.loc[(df['tail'] != 'not a tail'), 'peak_prominence'].ffill()
+
+        # Fill NaN values where 'c_tail' is not 'not a tail' using forward fill
+        df.loc[(df['c_tail'] != 'not a tail'), 'c_peak_prominence'] = df.loc[(df['c_tail'] != 'not a tail'), 'c_peak_prominence'].ffill()
+
+        df.loc[pd.isna(df["corrected_data"]), 'tail'] = np.nan
+        df.loc[pd.isna(df["corrected_data"]), 'peak_prominence'] = np.nan
+        df.loc[pd.isna(df["corrected_data"]), 'is_peak'] = np.nan
+        
+
+        df.loc[pd.isna(df["comparison"]), 'c_tail'] = np.nan
+        df.loc[pd.isna(df["comparison"]), 'c_peak_prominence'] = np.nan
+        df.loc[pd.isna(df["comparison"]), 'c_is_peak'] = np.nan
+
+        df.loc[df["tail"] == "not a tail", "tail"] = np.nan
+        df.loc[df["c_tail"] == "not a tail", "c_tail"] = np.nan
+   
+
+
+        #df.loc[df["is_peak"] == True, 'is_peak'] = df["corrected_data"]
+        #df.loc[df["c_is_peak"] == True, 'c_is_peak'] = df["comparison"]
+
+        # create a test fill column
+        df["initial df"] = df["corrected_data"]
+        df["test"] = df["corrected_data"]
+        #df["peak_compare"] = df["corrected_data"]
+        #df["highflow_compare"] = df["corrected_data"]
+
+
+        
+       
+        
+        # find peaks or close to them in dfs
+        df = df.sort_values(["comparison"], ascending=False)
+        df.loc[df["c_is_peak"] == True, "test"] = df.loc[df["c_is_peak"] == True, "test"].interpolate(method='linear', limit_direction='both')
+        df = df.sort_values(["datetime"], ascending=True)
+        # calculate interpolation offset
+        #df.loc[(~pd.isna(df["comparison"]) & ~pd.isna(df["corrected_data"])), "interpolation_offset"] = df["comparison"] - df['corrected_data']
+        # fill offset
+        #df["interpolation_offset"].interpolate( method='linear', inplace=True, axis=0, limit_direction='both')
+        #df.loc[pd.isna(df["corrected_data"]), "peak_compare"] = df["peak_compare"]-df["interpolation_offset"]
+        #df = df.drop(columns=["interpolation_offset"])
+
+        
+
+        # Step 2: Update 'test' only where it is NaN
+        #df['test'] = df['test'].combine_first(df['peak_fill'])
+        #df.drop(columns=['peak_fill'], inplace=True)
+
+        #df["interpolation_offset"].interpolate( method='linear', inplace=True, axis=0, limit_direction='both')
+        #df.loc[pd.isna(df["corrected_data"]), 'peak_fill'] = df["peak_fill"]-df["interpolation_offset"]
+        #df = df.drop(columns=["interpolation_offset"])
         
         # works well "c_rise_fall", 'c_difference' but still kinda jumpy
         # works well "c_rise_fall", 'c_difference', 'comparison' but a bit jumpy and very restrictive
         # test fill
-        df['test'] = df.groupby(["c_rise_fall", 'c_difference', 'comparison'])['corrected_data'].apply(lambda x: x.interpolate(method='linear', limit_direction='both', limit_area = "inside"))
+        
+        # fill values in peaks
+        df = df.sort_values(["comparison"], ascending=True)
+
+        df.loc[df["c_tail"] == "left tail", "test"] = df.loc[df["c_tail"] == "left tail", "test"].interpolate(method='linear', limit_direction='both')
+        df.loc[df["c_tail"] == "right tail", "test"] = df.loc[df["c_tail"] == "right tail", "test"].interpolate(method='linear', limit_direction='both')
+        
+
+
+
+        #df["test"] = df.groupby(["c_tail"])["test"].apply(lambda x: x.interpolate(method='linear', limit_direction='both', limit_area = "inside"))
+        
+        df = df.sort_values([f"datetime"], ascending=True)
+
         # calculate interpolation offset test
-        df.loc[(~pd.isna(df["comparison"]) & ~pd.isna(df["corrected_data"])), "interpolation_offset"] = df["comparison"] - df['corrected_data']
+        #df.loc[(~pd.isna(df["comparison"]) & ~pd.isna(df["corrected_data"])), "interpolation_offset"] = df["comparison"] - df['corrected_data']
         # fill offset
-        df["interpolation_offset"].interpolate( method='linear', inplace=True, axis=0, limit_direction='both')
-        df.loc[pd.isna(df["corrected_data"]), 'test'] = df["test"]-df["interpolation_offset"]
-        df = df.drop(columns=["interpolation_offset"])
+        #df["interpolation_offset"].interpolate( method='linear', inplace=True, axis=0, limit_direction='both')
+        #df.loc[pd.isna(df["corrected_data"]), 'test'] = df["test"]-df["interpolation_offset"]
+        #df = df.drop(columns=["interpolation_offset"])
+
         
-        
+        ### non peak
+
         
         # if row estimate is going from zero to 1 set 
         #update_observation_stage = 
@@ -477,12 +591,15 @@ def cache_comparison_interpolation(df, site, site_sql_id, parameter, start_date,
 
         df = df.drop(columns=['c_relative_water_year'])
         df = df.drop(columns=['water_year'])
-
-        df = df.drop(columns=['difference'])
-        df = df.drop(columns=['c_difference'])
-        df = df.drop(columns=["rise_fall"])
-        df = df.drop(columns=["c_rise_fall"])
-       
+        
+        df = df.drop(columns=["is_peak"])
+        df = df.drop(columns=["peak_prominence"])
+        df = df.drop(columns=["tail"])
+        df = df.drop(columns=["c_is_peak"])
+        df = df.drop(columns=["c_peak_prominence"])
+        df = df.drop(columns=["c_tail"])
+        df = df.drop(columns=['c_rolling_sum_relative_water_year'])
+      
         df = df.drop(columns=['test'])
        
  

@@ -47,16 +47,16 @@ def sql_import(parameter, site_sql_id, start_date, end_date):
             if parameter == "FlowLevel" or parameter == "discharge":
               
                 # QUERY Discharge
-                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['discharge']} as discharge, {config[parameter]['est']} as estimate "
+                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['discharge']} as discharge, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning "
             elif parameter == "barometer":
                 # barometer (only has "data column")
-                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['est']} as estimate "
+                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning "
             
             # precipitation
             #elif parameter == "Precip" or parameter == "precip" or parameter == "rain" or parameter == "Rain":
             else:
             
-                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['est']} as estimate  "
+                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning "
                 
                 # NEW CONN STRING
             with sql_engine.begin() as conn:
@@ -207,14 +207,14 @@ def get_horizontal_datum(site_sql_id):
         return ground_ele
 
 
-def get_rating_points_and_list(site_sql_id):
+def get_rating_points_and_list(site_sql_id): # for rating analysis
         with sql_engine.begin() as conn:
             rating_points = pd.read_sql_query(f"""
             SELECT 
                 r.WaterLevel as stage_rating, 
                 CAST(r.Discharge AS float) as discharge_rating, 
                 r.RatingNumber as rating,
-                s.Offset as offset
+                s.Offset as gzf
             FROM 
                 tblFlowRatings r
             JOIN 
@@ -233,3 +233,37 @@ def get_rating_points_and_list(site_sql_id):
         rating_list = list(rating_points.index.unique())
     
         return rating_points, rating_list
+
+def rating_calculator(Ratings_value, site_sql_id): # for cache...should merge with others
+            
+        with sql_engine.begin() as conn:
+                rating_points = pd.read_sql_query(f"SELECT WaterLevel as water_level_rating, Discharge as discharge, RatingNumber as rating_number "
+                                            f"FROM tblFlowRatings "
+                                            f"WHERE G_ID = '{str(site_sql_id)}' "
+                                            f"AND RatingNumber = '{Ratings_value}' ;", conn)
+        
+        rating_points = rating_points.dropna()
+        rating_points.sort_values(by=['water_level_rating'], inplace = True)
+        rating_points["water_level_rating"] = round(rating_points["water_level_rating"], 2)
+        rating_points["discharge"] = round(rating_points["discharge"], 2)
+          # rating offset
+
+        with sql_engine.begin() as conn:
+                gzf = pd.read_sql_query(f"SELECT Offset as gzf "
+                                            f"FROM tblFlowRating_Stats "
+                                            f"WHERE Rating_Number = '{Ratings_value}';", conn)
+           
+            
+
+        gzf = gzf.iloc[0, 0].astype(float)
+        rating_calculation_status = Ratings_value
+        return rating_calculation_status, rating_points, gzf
+
+def get_sites(parameter):
+        if parameter == "discharge":
+                with sql_engine.begin() as conn:
+                        available_sites = pd.read_sql_query(f"select SITE_CODE as site_id, G_ID as site_sql_id from tblGaugeLLID WHERE STATUS = 'Active' AND FlowLevel = 'True' ORDER BY SITE_CODE ASC;", conn)
+    # site_sql_id = pd.read_sql_query(f"select G_ID as site_sql_id from tblGaugeLLID WHERE SITE_CODE = {site_number};", conn)
+# this will need to change when there is more then just flowlevel
+        available_sites = available_sites["site_id"].values.tolist()
+        return available_sites

@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['cache_gdata.py'],
+    ['rating_graph'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -21,7 +21,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='cache_gdata',
+    name='rating_graph',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -40,5 +40,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='cache_gdata',
+    name='rating_graph',
 )

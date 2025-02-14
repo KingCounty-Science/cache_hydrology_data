@@ -3,63 +3,62 @@ import pandas as pd
 
 # Full discharge calculation
 def discharge_calculation(df_q, ratings_value, site_sql_id):
-    # Calculate Discharge (Q) Offset
-    # when re running this clears out old data
-    if "comparison" in df_q.columns:
-            df = df_q[["datetime", "data", "corrected_data", "observation_stage", "q_observation", "offset", "estimate", "comparison"]]
-    if "comparison" not in df_q.columns:
-            df = df_q[["datetime", "data", "corrected_data", "observation_stage", "q_observation", "offset", "estimate"]]
 
-        # flag, if flag hasnt been set or has been reset get the rating
-        # this should save processing speed
-    rating_calculation_status = "not calculated"
-    if rating_calculation_status != ratings_value:
-            from rating import rating_calculator
-            # fx sets flag and wont run unless flag has been reset
-            rating_calculation_status, interpolate_discharge, interpolate_stage, gzf = rating_calculator(ratings_value, site_sql_id)
-    # given this discharge you should have a stage of this
-    df.loc[:, "rating_stage_for_observation"] = interpolate_stage(df['q_observation'])
-    # so your stage is off by X
-    df.loc[:, 'q_offset'] = df['rating_stage_for_observation'] - (df["corrected_data"]-gzf)
-    # precent change
-    df['rating_stage_for_observation'] = ((df['rating_stage_for_observation']-(df['observation_stage']-gzf))/df['rating_stage_for_observation'])*100
-    df.rename(columns={'rating_stage_for_observation': "precent_q_change"}, inplace=True)
-    # at your stage you should have a discharge of X
-    # interpolate q_offset
-    df.loc[:, 'discharge'] = df['q_offset']
-    #df['discharge'] = df['q_offset']
-    df['discharge'].interpolate(method='linear', inplace=True, axis=0, limit_direction='both')
-    #df['stage_offset'] = (df['corrected_data']-gzf) + df['offset_interpolate']
-    df['discharge'] = interpolate_discharge((df['corrected_data']-gzf) + df['discharge'])
-    # if discharge is below rating it may return an na...right now we are filling this with zero but its not great
-    df['discharge'] = df['discharge'].fillna(0)
-    df["RatingNumber"] = ratings_value
-    df['q_offset'] = round(df['q_offset'],2)
-    df["precent_q_change"] = round(df["precent_q_change"],2)
-    #df.to_csv(r"W:/STS/hydro/GAUGE/Temp/Ian's Temp/discharge_calc.csv")
-    df.sort_values(by=['datetime'], inplace=True)
-    #if "estimate" not in df.columns:
-    #    df["estimate"] = 0
+        desired_order = ["datetime", "data", "corrected_data", "observation_stage", "q_observation", "offset", "estimate", "warning", "comparison", "dry_indicator"] # observation and observation_stage are kinda redundent at some point and should be clarified
+        existing_columns = [col for col in desired_order if col in df_q.columns]# Filter out columns that exist in the DataFrame
+        df = df_q[existing_columns].copy() # Reorder the DataFrame columns
 
-    if "comparison" in df.columns:
-            df = df[["datetime", "data", "corrected_data", "discharge", "observation_stage", "q_observation", "offset", "q_offset", "precent_q_change", "RatingNumber", "estimate", "comparison"]]
-    if "comparison" not in df.columns:
-            df = df[["datetime", "data", "corrected_data", "discharge", "observation_stage", "q_observation", "offset", "q_offset", "precent_q_change", "RatingNumber", "estimate"]]
-    return df
+        rating_calculation_status = "not calculated"
+        if rating_calculation_status != ratings_value:
+                from import_data import rating_calculator
+                # fx sets flag and wont run unless flag has been reset
+                rating_calculation_status, rating_points, gzf = rating_calculator(ratings_value, site_sql_id)
+       
+        df["q_observation"] = round(df["q_observation"], 2)
+
+        ## get rating discharge at q_obs
+        df_obs = pd.merge_asof(df.sort_values('q_observation').dropna(subset=["q_observation"]), rating_points.sort_values('discharge'), left_on = "q_observation", right_on = "discharge", allow_exact_matches=True, direction='nearest')
+        # calculated q offset
+        df_obs["q_offset"] = ((df_obs["observation_stage"]-gzf)-df_obs["water_level_rating"]).round(2)
+        df_obs["precent_q_change"] = abs((df_obs["q_offset"]/(df_obs["observation_stage"]-gzf))*100).round(2)
+        df_obs = df_obs[["datetime", "q_offset", "precent_q_change"]]
+        
+        df = df.merge(df_obs, on = "datetime", how = 'left') # add offset and change to df
+        
+        # fill q offset
+        df["q_offset"] = df["q_offset"].interpolate(method='linear', limit_direction='both')
+        df["adjusted_stage"] = ((df["corrected_data"]-gzf)-df["q_offset"]).round(2)
+        
+        # get discharge values
+        df = df.merge(rating_points, left_on="adjusted_stage", right_on='water_level_rating', how = 'outer')
+        df = df.drop(columns = ["adjusted_stage", "water_level_rating"])
+        
+        df = df.sort_values(by="datetime")
+      
+        df.sort_values(by=['datetime'], inplace=True)
+       
+        desired_order = ["datetime", "data", "corrected_data", "discharge", "observation_stage", "q_observation", "offset", "q_offset", "precent_q_change", "rating_number", "estimate", "warning", "comparison", "dry_indicator"]# observation and observation_stage are kinda redundent at some point and should be clarified
+        existing_columns = [col for col in desired_order if col in df.columns] # Filter out columns that exist in the DataFrame
+        df = df[existing_columns].copy() # Reorder the DataFrame columns
+
+        return df
 
 
 # finalize discharge dataframe
 def finalize_discharge_dataframe(df_q):
-    df_q['data'] = df_q['data'].round(2)
-    df_q['corrected_data'] = df_q['corrected_data'].round(2)
-    df_q['observation_stage'] = df_q['observation_stage'].round(2)
-    df_q['q_observation'] = df_q['q_observation'].round(2)
-    df_q['discharge'] = df_q['discharge'].round(2)
+        df_q['data'] = df_q['data'].round(2)
+        df_q['corrected_data'] = df_q['corrected_data'].round(2)
+        df_q['observation_stage'] = df_q['observation_stage'].round(2)
+        df_q['q_observation'] = df_q['q_observation'].round(2)
+        df_q['discharge'] = df_q['discharge'].round(2)
         # convert datetime
-    df_q['datetime'] = pd.to_datetime(
-            df_q['datetime'], format='%Y-%m-%d %H:%M:%S', errors='coerce', infer_datetime_format=True)
-    if "comparison" in df_q.columns:
-            df_q = df_q[["datetime", "data", "corrected_data", "discharge", "observation_stage", "q_observation", "offset", "q_offset", "precent_q_change", "RatingNumber", "estimate", "comparison"]]
-    if "comparison" not in df_q.columns:
-            df_q = df_q[["datetime", "data", "corrected_data", "discharge", "observation_stage", "q_observation", "offset", "q_offset", "precent_q_change", "RatingNumber", "estimate"]]
-    return df_q
+        df_q['datetime'] = pd.to_datetime(
+                df_q['datetime'], format='%Y-%m-%d %H:%M:%S', errors='coerce', infer_datetime_format=True)
+        
+        desired_order = ["datetime", "data", "corrected_data", "discharge", "observation_stage", "q_observation", "offset", "q_offset", "precent_q_change", "rating_number", "estimate", "warning", "comparison", "dry_indicator"]
+        # Filter out columns that exist in the DataFrame
+        existing_columns = [col for col in desired_order if col in df_q.columns]
+        # Reorder the DataFrame columns
+        df_q = df_q[existing_columns].copy()
+    
+        return df_q

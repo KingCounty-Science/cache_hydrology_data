@@ -223,6 +223,13 @@ app.layout = html.Div([
                     dbc.ModalBody([dcc.RangeSlider(id='interval', min=0, max=4, step=None, marks={0: '1 min', 1: '5 min', 2: '15 min', 3: 'hourly', 4: 'daily'}, value=[2]),
                     html.Div(id="data_interval", children="data_interval")]),
                         html.Button('interpolate', id='interpolate_button'), 
+                        
+                        html.Div([
+                            html.Label("Show Dry Indicator"),
+                            daq.ToggleSwitch(id='dry_indicator_button', value=False),
+                            html.Button('set dry warning', id='set_dry_indicator_warning_button'), 
+                                ], style={'display': 'flex'}),
+                        
                         dbc.ModalFooter(dbc.Button("close", id="close-modal-button", className="ml-auto")),], id="modal", size="xl",),
                 # graphing options
                 html.Button("graphing options", id="open-graphing-options-button"),
@@ -602,8 +609,8 @@ def Select_Ratings(Parameter_value, site_sql_id):
    #print("select ratings")
     if Parameter_value == "FlowLevel":
         with sql_engine.begin() as conn:
-            Ratings = pd.read_sql_query(f"select RatingNumber from tblFlowRatings WHERE G_ID = '{site_sql_id}' GROUP BY RatingNumber ORDER BY RatingNumber DESC;", conn)
-        Ratings = Ratings['RatingNumber'].values.tolist()
+            Ratings = pd.read_sql_query(f"select RatingNumber as rating_number from tblFlowRatings WHERE G_ID = '{site_sql_id}' GROUP BY RatingNumber ORDER BY RatingNumber DESC;", conn)
+        Ratings = Ratings['rating_number'].values.tolist()
     
         return [{'label': i, 'value': i} for i in Ratings], {'display': 'block'}
     else:
@@ -668,13 +675,16 @@ def update_daterange(startDate, endDate, site, site_sql_id, parameter, contents,
                 #df = df.to_dict('records'), [{"name": i, "id": i} for i in df.columns], True
                 return pd.DataFrame().to_json(orient="split"), startDate, endDate
             else:
-                B_ID_Lookup = search.iloc[0, 1]
-                # THIS IS DUMB, ITS A PLACHHOULDER there needs to be a formula to convert wl feet
-                if df['data'].mean() < 30:
-                    df['data'] = round((df['data']*68.9476), 3)
 
-                if df['data'].mean() > 999:
-                    df['data'] = df['data']
+                B_ID_Lookup = search.iloc[0, 1]
+
+               
+                # THIS IS DUMB, ITS A PLACHHOULDER there needs to be a formula to convert wl feet
+                if df['data'].mean() < 30: # if under 30 assumed to be psi
+                    df['data'] = round((df['data']*68.9476), 3) # convert to millibar
+
+                if df['data'].mean() > 999: # assumed to be millibar
+                    df['data'] = df['data'] # millibar
                   
                 
                 barometer_query = sql_import("barometer", B_ID_Lookup, df['datetime'].min(), df['datetime'].max()) # fx converts to PST and out of PST
@@ -683,8 +693,10 @@ def update_daterange(startDate, endDate, site, site_sql_id, parameter, contents,
                 barometer_query = barometer_query.set_index("datetime").resample('5T').interpolate(method='linear').reset_index(level=None, drop=False)
 
                 df = pd.merge(df,barometer_query[['datetime', "barometer_data"]],on=['datetime'])
+                
                 df['data'] = ((df['data']-df["barometer_data"]) * 0.0335).round(3)
                 # Also a shotty conversion using a standard pressure
+                
                 df = df.drop(['barometer_data'], axis=1)
         
        
@@ -768,10 +780,15 @@ def get_observations(site, parameter, barometer_corrected_data, site_sql_id, sta
             # add per / post data
             from import_data import sql_import
             df_pre =  sql_import(parameter, site_sql_id, df['datetime'].min() - timedelta(hours=12), df['datetime'].min() - timedelta(hours=0)) #fx uses pdt  parm, start, end
-            df_pre["observation_stage"] = df_pre['corrected_data']
+            df_pre[f"{config[parameter]['observation_class']}"] = df_pre["corrected_data"] ### corrected data (water level)
+            if parameter == "discharge":
+                df_pre["q_observation"] = df_pre["discharge"]
         
             df_post = sql_import(parameter, site_sql_id, df['datetime'].max() - timedelta(hours=0), df['datetime'].max() + timedelta(hours=12)) #convert start/end date from utc to pdt
-            df_post["observation_stage"] = df_post["corrected_data"]
+            df_post[f"{config[parameter]['observation_class']}"] = df_post["corrected_data"] ### corrected data (water level)
+            if parameter == "discharge":
+                df_post["q_observation"] = df_post["discharge"]
+            ### need to add q observation here
             df = pd.concat([df_pre, df_post, df])
             df = df.sort_values(by='datetime', ascending=False)
             df = fill_timeseries(df, data_interval) # this doesn do too much anymore
@@ -802,6 +819,8 @@ def get_observations(site, parameter, barometer_corrected_data, site_sql_id, sta
     Input("realtime_update", "value"),
     Input("run_job", "n_clicks"),
     Input('interpolate_button', 'n_clicks'),
+    Input('dry_indicator_button', 'value'),
+    Input('set_dry_indicator_warning_button', "n_clicks"),
     Input('select_range', 'startDate'),  # startDate is a dash parameter
     Input('select_range', 'endDate'),
     Input('checklist', 'value'),
@@ -825,7 +844,7 @@ def get_observations(site, parameter, barometer_corrected_data, site_sql_id, sta
     #This example uses running to set the disabled property of the button to True while the callback is running, and False when it completes
    # manager=long_callback_manager,)
     
-def correct_data(data_interval, realtime_update, run_job, interpolate_button, startDate, endDate, checklist, data_level, site, site_sql_id, Parameter_value, comparison_site, comparison_site_sql_id, comparison_parameter, ratings_value,  Initial_Data_Correction_row, Initial_Data_Correction_column, row, Corrected_Data_row, Corrected_Data_column):
+def correct_data(data_interval, realtime_update, run_job, interpolate_button, dry_indicator_button, set_dry_indicator_warning_button, startDate, endDate, checklist, data_level, site, site_sql_id, Parameter_value, comparison_site, comparison_site_sql_id, comparison_parameter, ratings_value,  Initial_Data_Correction_row, Initial_Data_Correction_column, row, Corrected_Data_row, Corrected_Data_column):
 
     '''Takes dataframe of data and observations from function: get_observations '''
 
@@ -870,7 +889,7 @@ def correct_data(data_interval, realtime_update, run_job, interpolate_button, st
             df_raw = parameter_calculation(df_raw, observation, data_level)
 
         if Parameter_value != 'FlowLevel':
-            desired_order = ["datetime", "data", "corrected_data", "observation", "observation_stage", "offset", "estimate", "comparison", "comments"] # observation and observation_stage are kinda redundent at some point and should be clarified
+            desired_order = ["datetime", "data", "corrected_data", "observation", "observation_stage", "offset", "estimate", "warning", "comparison", "comments"] # observation and observation_stage are kinda redundent at some point and should be clarified
             # Filter out columns that exist in the DataFrame
             existing_columns = [col for col in desired_order if col in df_raw.columns]
             # Reorder the DataFrame columns
@@ -886,7 +905,7 @@ def correct_data(data_interval, realtime_update, run_job, interpolate_button, st
             if ratings_value == 'NONE':  # If there is no discharge calculate a discharge of zero
                 df_raw["q_offset"] = "nan"
                 df_raw["precent_q_change"] = "nan"
-                df_raw["RatingNumber"] = "NONE"
+                df_raw["rating_number"] = "NONE"
             else:
                 if (realtime_update is True or 'run_job' in changed_id):
                     df_raw = discharge_calculation(df_raw, ratings_value, site_sql_id)
@@ -921,7 +940,25 @@ def correct_data(data_interval, realtime_update, run_job, interpolate_button, st
            
         df_raw = df_raw.sort_values(by='datetime', ascending=False)
         df_raw["datetime"] = df_raw["datetime"].dt.strftime('%Y-%m-%d %H:%M') # allows dash graph to display datetime without the "Td"
-    
+
+        ## dry indicator
+        if dry_indicator_button is True:
+            
+            df_raw['dry_indicator'] = (df_raw['data'] - np.mean(df_raw['data'])) - abs((df_raw['data'] - np.mean(df_raw['data'])))
+            df_raw.loc[df_raw['dry_indicator'] == 0, "dry_indicator"] = 1
+            df_raw.loc[df_raw['dry_indicator'] < 0, "dry_indicator"] = 0 # dry
+
+            df_raw.loc[df_raw['dry_indicator'] == 1, "dry_indicator"] = " "
+            df_raw.loc[df_raw['dry_indicator'] == 0, "dry_indicator"] = "dry indicator"# dry
+
+            changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+            if 'set_dry_indicator_warning_button' in changed_id:
+                df_raw.loc[df_raw["dry_indicator"] == "dry indicator", "warning"] = 1
+        if dry_indicator_button is False and 'dry_indicator' in df_raw.columns:
+
+            df_raw.drop(columns=['dry_indicator'], inplace = True)
+
+
         if realtime_update is False:
             realtime_update_info = "realtime updating  - paused - "
         if realtime_update is True:
@@ -1011,7 +1048,7 @@ def run_upload_data(n_clicks, df, site, site_sql_id, parameter, comparison_site,
             save_fig(df, site, site_sql_id, parameter, comparison_site, comparison_parameter, rating, data_axis, corrected_data_axis, derived_data_axis, observation_axis, comparison_axis, end_date, primary_min, primary_max, secondary_min, secondary_max)
             from sql_upload import full_upload
 
-            desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate"] # observation and observation_stage are kinda redundent at some point and should be clarified
+            desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"] # observation and observation_stage are kinda redundent at some point and should be clarified
             # Filter out columns that exist in the DataFrame
             existing_columns = [col for col in desired_order if col in df.columns]
             # Reorder the DataFrame columns

@@ -102,7 +102,9 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         df[config[parameter]['ice']] = "0"
         return df
     def warning_column():
-        df[config[parameter]['warning']] = "0"
+        #df[config[parameter]['warning']] = "0"
+        df.rename(columns={"warning": config[parameter]['warning']}, inplace=True)
+        df[config[parameter]['warning']] = df[config[parameter]['warning']].astype(bool)
         return df
 
     def provisional_column():
@@ -317,6 +319,8 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         upload(df)
 
     if parameter == "water_level":
+        print("pre upload df")
+        print(df.head(5))
         df = auto_timestamp_column()
         df = est_column()
         df = lock_column()
@@ -326,6 +330,8 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         df = warning_column()
         # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
         df = sql_time()
+        print("df for uload")
+        print(df.head(5))
         upload(df)
 
     if parameter == 'groundwater_level':

@@ -61,6 +61,9 @@ def fill_timeseries(data, data_interval):
  
     if "estimate" not in data.columns:
         data["estimate"] = "0"
+
+    if "warning" not in data.columns:
+        data["warning"] = "0"
     
 
     def f(x):
@@ -118,6 +121,8 @@ def reformat_data(df):
         df['comparison'] = df['comparison'].astype(float, errors="ignore")
     if 'estimate' in df.columns:
         df['estimate'] = df['estimate'].astype(int, errors="ignore")
+    if 'warning' in df.columns:
+        df['warning'] = df['warning'].astype(int, errors="ignore")
     if 'measurement_number' in df.columns:
         df['measurement_number'] = df['measurement_number'].astype(float, errors="ignore")
     if 'discharge_observation' in df.columns:
