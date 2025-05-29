@@ -20,7 +20,7 @@ def discharge_calculation(df_q, ratings_value, site_sql_id):
         # calculated q offset
       
         df_obs["q_offset"] = ((df_obs["observation_stage"]-gzf)-df_obs["water_level_rating"]).round(2)
-        df_obs["precent_q_change"] = abs((df_obs["q_offset"]/(df_obs["observation_stage"]-gzf))).round(2)
+        df_obs["precent_q_change"] = abs((df_obs["q_offset"]/(df_obs["observation_stage"]-gzf))*100).round(2)
         df_obs = df_obs[["datetime", "q_offset", "precent_q_change"]]
         
         df = df.merge(df_obs, on = "datetime", how = 'left') # add offset and change to df

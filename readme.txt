@@ -4,8 +4,10 @@ Repo restarted Feb 14 2025 to avoid gitlog issue
 A. # deactivate and delete venv before creating a new venv
 
 1. To create a virtual environment 
-    py -m venv venv 
-    or python -m venv venv
+    py/python -m venv .venv
+    # .venv\Scripts\activate
+    # pip install -r requirements.txt
+    # activate venv and run program py app.py
 
 2. activate venv a (venv) shold appear before the file path in terminal ie "(venv) PS C:\Users\ihiggins\Desktop\cache_hydro_data>"
 .\venv\Scripts\activate 

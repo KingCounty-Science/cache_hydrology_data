@@ -263,6 +263,7 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         df = provisional_column()
         df = site_id(site_sql_id)
         df = utc_offset_column(utc_offset)
+        df = warning_column()
         # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
         df = sql_time()
         upload(df)

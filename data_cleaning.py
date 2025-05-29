@@ -153,7 +153,7 @@ def initial_column_managment(df):
 def column_managment(df):
      
     #search for columns and re arrange if present
-        desired_order = ["datetime", "c_stage", "c_corrected_data", "c_water_level", "c_discharge", "data", "corrected_data", "discharge", "observation", "observation_stage", "q_observation", "offset", "q_offset", "precent_q_change", "rating_number", "estimate", "warning", "comparison", "dry_indicator", "comments", "mean", "interpolated_data"]  # observation and observation_stage are kinda redundent at some point and should be clarified
+        desired_order = ["datetime", "c_stage", "c_corrected_data", "c_water_level", "c_water_temperature", "c_discharge", "data", "corrected_data", "discharge", "observation", "observation_stage", "parameter_observation", "q_observation", "offset", "q_offset", "precent_q_change", "rating_number", "estimate", "warning", "comparison", "dry_indicator", "comments", "mean", "interpolated_data"]  # observation and observation_stage are kinda redundent at some point and should be clarified
         #comparison_columns = (df.columns[df.columns.str.contains('comparison')]).values.tolist()
         comparison_columns = df.columns[df.columns.str.contains('comparison')].tolist()
         
@@ -192,6 +192,8 @@ def parameter_calculation(df, data_level):
             obs = "observation"
     elif "observation_stage" in df.columns:
             obs = "observation_stage"
+    elif "observation_stage" not in df.columns and "parameter_observation" in df.columns:
+            obs = "parameter_observation"
         #"""if observation not in df.columns:
         #        df[observation] = np.nan
         #if 'offset' not in df.columns:

@@ -146,9 +146,9 @@ def sql_statistics(parameter, site_sql_id):
         if parameter == "discharge" or parameter == "FlowLevel":
                 select_statement = f"""SELECT 
                         PERCENTILE_CONT(0.05) 
-                        WITHIN GROUP (ORDER BY {config[parameter]['discharge']})
+                        WITHIN GROUP (ORDER BY {config[parameter]['discharge_mean']})
                         OVER () AS percentile_95
-                        FROM {config[parameter]['table']}
+                        FROM {config[parameter]['daily_table']}
                         WHERE G_ID = {str(site_sql_id)};"""
                 with sql_engine.begin() as conn:
                         result = conn.execute(select_statement).fetchone()
@@ -158,18 +158,19 @@ def sql_statistics(parameter, site_sql_id):
                 percentile_95_q = 0
 
         # get 05 percentile water level (05 is the lowest 05 flow)
+        try:
+                select_statement = f"""SELECT 
+                                PERCENTILE_CONT(0.05) 
+                                WITHIN GROUP (ORDER BY {config[parameter]['daily_mean']})
+                                OVER () AS percentile_95
+                                FROM {config[parameter]['daily_table']}
+                                WHERE G_ID = {str(site_sql_id)};"""
+                with sql_engine.begin() as conn:
+                        result = conn.execute(select_statement).fetchone()
 
-        select_statement = f"""SELECT 
-                        PERCENTILE_CONT(0.05) 
-                        WITHIN GROUP (ORDER BY {config[parameter]['corrected_data']})
-                        OVER () AS percentile_95
-                        FROM {config[parameter]['table']}
-                        WHERE G_ID = {str(site_sql_id)};"""
-        with sql_engine.begin() as conn:
-                result = conn.execute(select_statement).fetchone()
-
-        percentile_95 = result['percentile_95']
-
+                percentile_95 = result['percentile_95']
+        except:
+              percentile_95 = 0
 
 
         # Extract first and last datetime from the result
@@ -344,9 +345,14 @@ def usgs_data_import(site_name, parameter, start_date, end_date):
         if start_date != "" and end_date != "":
                 start_date = start_date.strftime("%Y-%m-%dT%H:%M")
                 end_date = end_date.strftime("%Y-%m-%dT%H:%M")
-               
-                site_number = pd.read_csv("external_comaprison_sites.csv", skipinitialspace=True)
-                site_number = site_number["site_sql_id"].loc[site_number["site"] == f"USGS {site_name}"].item()
+                #site_number = site_name
+
+
+                usgs_site_codes = pd.read_csv("external_comaprison_sites.csv", skipinitialspace=True)
+                site_number = usgs_site_codes.loc[usgs_site_codes["site"] == site_name, "site_sql_id"].item()
+
+                #site_number = pd.read_csv("external_comaprison_sites.csv", skipinitialspace=True)
+                #site_number = site_number["site_sql_id"].loc[site_number["site"] == f"USGS {site_name}"].item()
                 # convert comparison parameter to number
                 # https://help.waterdata.usgs.gov/parameter_cd?group_cd=PHY we should use these paramters for gdata
                 if parameter == "discharge":
@@ -354,7 +360,17 @@ def usgs_data_import(site_name, parameter, start_date, end_date):
                 elif parameter == "stage" or parameter == "water_level":
                        parameter_number = "00065"
                 elif parameter == "water_temperature":
-                        paramter_number = "00010"
+                        parameter_number = "00010"
+                elif parameter == "wind_speed":
+                        parameter_number = "00038"
+                elif parameter == "precipitation":
+                        parameter_number = "00045"
+                elif parameter == "relative_humidity":
+                        parameter_number = "00025"
+                elif parameter == "air_temperature":
+                        parameter_number = "00020"
+                elif parameter == "solar_radiation":
+                        parameter_number = "00036"
                 else:
                        parameter_number = "00060"
                 # Example query parameters (replace with your values)
@@ -371,7 +387,7 @@ def usgs_data_import(site_name, parameter, start_date, end_date):
                 url = f'https://waterservices.usgs.gov/nwis/iv/?sites={site_number}&parameterCd={parameter_number}&startDT={start_date}-07:00&endDT={end_date}-07:00&siteStatus=all&format=rdb'
                 df = pd.read_csv(url, delimiter='\t', comment='#', skiprows=30, header=None, names=['site_number', 'datetime', 'timezone', 'comparison', 'status'])
                 
-                print(pd.read_csv(url, delimiter='\t', comment='#', skiprows=0, header=None, names=['site_number', 'datetime', 'timezone', 'comparison', 'status']))
+               # print(pd.read_csv(url, delimiter='\t', comment='#', skiprows=1, header=None, names=['site_number', 'datetime', 'timezone', 'comparison', 'status']))
                 df = df.reset_index(drop=True)
               # Convert to UTC
                 # data is read in PST PDT 
@@ -379,7 +395,7 @@ def usgs_data_import(site_name, parameter, start_date, end_date):
                 #df['datetime'] = df['datetime'].dt.tz_localize('America/Los_Angeles').dt.tz_convert('UTC')
                 df = df[["datetime", "comparison"]]
                 df.rename(columns={'comparison': 'corrected_data'}, inplace=True)
-                df["site"] = site
+                df["site"] = site_name
                 df["parameter"] = parameter
                 desired_order = ["site", "parameter", "datetime", "corrected_data"]
                 existing_columns = [col for col in desired_order if col in df.columns] 
@@ -399,7 +415,97 @@ def usgs_data_import(site_name, parameter, start_date, end_date):
                 #else:
                 #        print(f"Error: {response.status_code}")
 #usgs_data_import()
+
+def noaa_data_import(site_name, parameter, start_date, end_date):
+       
+        token = "eNexYxFXopAZHtKttvNTbxxScXLOHNSN"
+        # datasets
+        # BASE_URL = "https://www.ncei.noaa.gov/cdo-web/api/v2/datasets"
+        """GHCND: Daily Summaries
+        GSOM: Global Summary of the Month
+        GSOY: Global Summary of the Year
+        NORMAL_ANN: Normals Annual/Seasonal
+        NORMAL_DLY: Normals Daily
+        NORMAL_HLY: Normals Hourly
+        NORMAL_MLY: Normals Monthly"""
+        import requests
+
+        # Your NOAA API token (replace with your actual token)
+        API_TOKEN = "eNexYxFXopAZHtKttvNTbxxScXLOHNSN"
+
+        # Station ID for KBFI in the GHCND dataset
+        STATION_ID = "GHCND:USW00024233"
+
+        # Base URL for the NOAA datatypes endpoint
+        BASE_URL = "https://www.ncdc.noaa.gov/cdo-web/api/v2/datatypes"
         
+        # Set up query parameters
+        params = {
+        "stationid": STATION_ID,
+        "datasetid": "GHCND",
+        "limit": 1000
+        }
+
+        # Set up request headers
+        headers = {
+        "token": API_TOKEN
+        }
+
+        # Make the GET request
+        response = requests.get(BASE_URL, headers=headers, params=params)
+
+        # Check for success
+        if response.status_code == 200:
+                data = response.json()
+                print(f"Datatypes measured at {STATION_ID}:\n")
+        for dt in data.get("results", []):
+                print(f"{dt['id']}: {dt['name']}")
+        else:
+                print(f"Error {response.status_code}: {response.text}")
+
+        # renton
+        STATION_ID = "GHCND:USW00024233"  # Or switch to ISD station ID if needed\
+        ## boeing field
+       # STATION_ID = "GHCND:USW00024233"
+        
+        DATASET_ID = "GHCND"  # Or "LCD", "ISD" depending on what's available
+        DATATYPE_ID = "ACSH"  # Replace with actual sunshine datatype from step 1
+        START_DATE = "2024-05-01"
+        END_DATE = "2024-05-31"
+
+        url = "https://www.ncdc.noaa.gov/cdo-web/api/v2/data"
+
+        params = {
+        "datasetid": DATASET_ID,
+        "datatypeid": DATATYPE_ID,
+        "stationid": STATION_ID,
+        "startdate": START_DATE,
+        "enddate": END_DATE,
+        "units": "standard",  # or "metric"
+        "limit": 1000
+        }
+
+        headers = {
+        "token": API_TOKEN
+        }
+
+        response = requests.get(url, headers=headers, params=params)
+
+        if response.status_code == 200:
+                results = response.json().get("results", [])
+                if results:
+                        print("Date\t\tSunshine Value")
+                        for item in results:
+                                date = item['date'][:10]
+                                value = item['value']
+                                print(f"{date}\t{value}")
+                else:
+                        print("No sunshine data found for this period.")
+        else:
+                print(f"Error {response.status_code}: {response.text}")
+
+
+#noaa_data_import("", "", "", "")
 
 def get_site_sql_id(site_id):
     with sql_engine.begin() as conn:
