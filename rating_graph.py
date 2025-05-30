@@ -535,7 +535,7 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, site_id, show_
         #colorscale = [[i, 'rgb(127, 255, 212)'] for i in colormap]  # Mint color scale
        
         fig = make_subplots(rows=1, cols=1)
-        fig.update_layout(title=f'{site_id} Rating Graph:  Stage - GZF ({gzf}) vs Discharge', xaxis=dict(title=f'Stage (Water Level) - GZF ({gzf})',type='log'), yaxis=dict(title='Discharge',type='log'))
+        fig.update_layout(title=f'{site_id} Rating Graph:  Stage - GZF ({gzf}) vs Discharge', yaxis=dict(title=f'Stage (Water Level) - GZF ({gzf})',type='log'), xaxis=dict(title='Discharge',type='log'))
         # Update layout to add border
         #fig.update_layout(plot_bgcolor='rgba(0,0,0,0)')
         fig.update_xaxes(showticklabels=True, showgrid=True, ticks="outside", minor_ticks="outside", showline=True, linecolor='black', linewidth=1, mirror = True)
@@ -546,19 +546,16 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, site_id, show_
         
       
         if graph_offset == True: # rating is allread offsetted so if you are graphing with offset do nothing
-                fig.add_trace(go.Scatter(x=rating_points.loc[rating_points.index == rating, "stage_rating"], #+ rating_points.loc[rating_points.index == item, "offset"],
-                                        y=rating_points.loc[rating_points.index == rating, "discharge_rating"],
+                fig.add_trace(go.Scatter(x=rating_points.loc[rating_points.index == rating, "discharge_rating"], y=rating_points.loc[rating_points.index == rating, "stage_rating"], #+ rating_points.loc[rating_points.index == item, "offset"],
                                         line=dict(width = 1),
                                         name=f"{rating} GZF: {round(rating_points['gzf'].loc[rating_points.index == rating].mean(), 2)}",showlegend=True,),row=1, col=1),   
         if graph_offset == False: # rating is offsetted so add gzf column to stage_rating
-                 fig.add_trace(go.Scatter(x=rating_points.loc[rating_points.index == rating, "stage_rating"] + rating_points.loc[rating_points.index == rating, "gzf"], #+ rating_points.loc[rating_points.index == item, "offset"],
-                                        y=rating_points.loc[rating_points.index == rating, "discharge_rating"],
+                 fig.add_trace(go.Scatter(x=rating_points.loc[rating_points.index == rating, "discharge_rating"], y=rating_points.loc[rating_points.index == rating, "stage_rating"] + rating_points.loc[rating_points.index == rating, "gzf"], #+ rating_points.loc[rating_points.index == item, "offset"],
                                         line=dict(width = 1),
                                         name=f"{rating} GZF: {round(rating_points['gzf'].loc[rating_points.index == rating].mean(), 2)}",showlegend=True,),row=1, col=1),   
         
         # show all observartions
-        fig.add_trace(go.Scatter(x=round(obs["observation_stage"] - gzf, 2),
-                                y=obs["parameter_observation"],
+        fig.add_trace(go.Scatter(x=obs["parameter_observation"], y=round(obs["observation_stage"] - gzf, 2),
                                 mode='markers',  # Set the mode to markers
                                 marker=dict(size=6,  # Adjust the size of the markers as needed
                                             opacity=.5,
@@ -567,17 +564,14 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, site_id, show_
                                 name="obs", showlegend=True,), row=1, col=1)
         
         if show_obs == False:
-            fig.add_trace(go.Scatter(x=round(mask["observation_stage"] - gzf, 2),
-                                y=mask["parameter_observation"],
+            fig.add_trace(go.Scatter(x=mask["parameter_observation"], y=round(mask["observation_stage"] - gzf, 2),
                                 mode='markers',marker=dict(size=10, color=mask['normalized_age'], colorscale="Mint",), text=mask["observation_number"], name="obs",showlegend=True,), row=1, col=1)
         elif show_obs == True:
-            fig.add_trace(go.Scatter(x=round(mask["observation_stage"] - gzf, 2),
-                                y=mask["parameter_observation"],
+            fig.add_trace(go.Scatter(x=mask["parameter_observation"], y=round(mask["observation_stage"] - gzf, 2),
                                 mode='markers+text',marker=dict(size=10, color=mask['normalized_age'], colorscale="Mint",), text=mask["observation_number"], textposition="top center", name="obs",showlegend=True,), row=1, col=1)
 
         if not tbl_addition.empty:
-            fig.add_trace(go.Scatter(x=round(tbl_addition["observation_stage"].astype(float, errors = 'ignore') - gzf, 2),
-                                    y=tbl_addition["parameter_observation"],
+            fig.add_trace(go.Scatter(x=tbl_addition["parameter_observation"], y=round(tbl_addition["observation_stage"].astype(float, errors = 'ignore') - gzf, 2),
                                     mode='markers', marker=dict(size=10, color='red', ), text=obs["observation_number"], name="addition",showlegend=True,), row=1, col=1)
             
         
@@ -587,9 +581,12 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, site_id, show_
         return dash.no_update
 
 if __name__ == '__main__':
-    #serve(app.server, port="8050",host='127.0.0.1')   
-    app.run_server(port="8050",host='127.0.0.1',debug=True)
-    #app.run_server(host='0.0.0.0',debug=True)
+    #serve(app.server, port="8050",host='127.0.0.1') # dont use
+    #app.run_server(host='0.0.0.0',debug=True) # dont use
+    # app.run_server(port="8050",host='127.0.0.1',debug=True) # use for general local host running
+
+
+    app.run_server(host="0.0.0.0", port=int(os.environ.get("PORT", 8050)), debug=False)  # binder dev
     
     
     
