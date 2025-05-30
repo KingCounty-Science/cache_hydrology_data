@@ -492,12 +492,7 @@ def get_observations(rating_points, rating, slider_range, obs, site_id):
     Input("graph_offset", "value"),
     Input("new_rating", 'data'))
 def graph(rating_points, rating, slider_range, obs, tbl_addition, site_id, show_obs, graph_offset, new_rating):
-    
-
-
     if site_id != "":
-        
-     
         tbl_addition = pd.DataFrame(tbl_addition)
         obs = pd.read_json(obs, orient='split')
         obs = obs.sort_values(by="datetime", ascending=True)
@@ -534,49 +529,125 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, site_id, show_
         #colormap = np.linspace(0.1, 1, len(obs)).round(1)  # Adjust the range and steps as needed
         #colorscale = [[i, 'rgb(127, 255, 212)'] for i in colormap]  # Mint color scale
        
-        fig = make_subplots(rows=1, cols=1)
-        fig.update_layout(title=f'{site_id} Rating Graph:  Stage - GZF ({gzf}) vs Discharge', yaxis=dict(title=f'Stage (Water Level) - GZF ({gzf})',type='log'), xaxis=dict(title='Discharge',type='log'))
-        # Update layout to add border
-        #fig.update_layout(plot_bgcolor='rgba(0,0,0,0)')
-        fig.update_xaxes(showticklabels=True, showgrid=True, ticks="outside", minor_ticks="outside", showline=True, linecolor='black', linewidth=1, mirror = True)
-        fig.update_yaxes(showticklabels=True, showgrid=True, ticks="outside", minor_ticks="outside", showline=True, linecolor='black', linewidth=1, mirror = True)
+        fig = make_subplots(rows=1, cols=2, subplot_titles=(f"{site_id} Rating Graph - Left", f"{site_id} Rating Graph - Right"))
         
-        fig.update_xaxes(showgrid=True)
-        fig.update_yaxes(showgrid=True)
-        
-      
-        if graph_offset == True: # rating is allread offsetted so if you are graphing with offset do nothing
-                fig.add_trace(go.Scatter(x=rating_points.loc[rating_points.index == rating, "discharge_rating"], y=rating_points.loc[rating_points.index == rating, "stage_rating"], #+ rating_points.loc[rating_points.index == item, "offset"],
-                                        line=dict(width = 1),
-                                        name=f"{rating} GZF: {round(rating_points['gzf'].loc[rating_points.index == rating].mean(), 2)}",showlegend=True,),row=1, col=1),   
-        if graph_offset == False: # rating is offsetted so add gzf column to stage_rating
-                 fig.add_trace(go.Scatter(x=rating_points.loc[rating_points.index == rating, "discharge_rating"], y=rating_points.loc[rating_points.index == rating, "stage_rating"] + rating_points.loc[rating_points.index == rating, "gzf"], #+ rating_points.loc[rating_points.index == item, "offset"],
-                                        line=dict(width = 1),
-                                        name=f"{rating} GZF: {round(rating_points['gzf'].loc[rating_points.index == rating].mean(), 2)}",showlegend=True,),row=1, col=1),   
-        
-        # show all observartions
-        fig.add_trace(go.Scatter(x=obs["parameter_observation"], y=round(obs["observation_stage"] - gzf, 2),
-                                mode='markers',  # Set the mode to markers
-                                marker=dict(size=6,  # Adjust the size of the markers as needed
-                                            opacity=.5,
-                                            color = "gray",),  # Optionally add a colorbar
-                                text=obs["observation_number"],  # Set the label to the observation_number column
-                                name="obs", showlegend=True,), row=1, col=1)
-        
-        if show_obs == False:
-            fig.add_trace(go.Scatter(x=mask["parameter_observation"], y=round(mask["observation_stage"] - gzf, 2),
-                                mode='markers',marker=dict(size=10, color=mask['normalized_age'], colorscale="Mint",), text=mask["observation_number"], name="obs",showlegend=True,), row=1, col=1)
-        elif show_obs == True:
-            fig.add_trace(go.Scatter(x=mask["parameter_observation"], y=round(mask["observation_stage"] - gzf, 2),
-                                mode='markers+text',marker=dict(size=10, color=mask['normalized_age'], colorscale="Mint",), text=mask["observation_number"], textposition="top center", name="obs",showlegend=True,), row=1, col=1)
+        # Shared layout for both plots
+        fig.update_layout(
+            title=f'{site_id} Rating Graph: Stage - GZF ({gzf}) vs Discharge',
+            yaxis=dict(title=f'Stage - GZF ({gzf})', type='log'),
+            xaxis=dict(title='Discharge', type='log'),
+            yaxis2=dict(title=f'Stage - GZF ({gzf})', type='log'),
+            xaxis2=dict(title='Discharge', type='log'),
+        )
 
-        if not tbl_addition.empty:
-            fig.add_trace(go.Scatter(x=tbl_addition["parameter_observation"], y=round(tbl_addition["observation_stage"].astype(float, errors = 'ignore') - gzf, 2),
-                                    mode='markers', marker=dict(size=10, color='red', ), text=obs["observation_number"], name="addition",showlegend=True,), row=1, col=1)
-            
+        # Format axes for both subplots
+        for axis in ['xaxis', 'yaxis', 'xaxis2', 'yaxis2']:
+            fig.update_layout({axis: dict(
+                showticklabels=True,
+                showgrid=True,
+                ticks="outside",
+                minor_ticks="outside",
+                showline=True,
+                linecolor='black',
+                linewidth=1,
+                mirror=True
+            )})
+
+        # Helper function to add traces to both columns
+       
+
+        # Add rating trace
+        fig.add_trace(go.Scatter(
+            x=rating_points.loc[rating_points.index == rating, "discharge_rating"],
+            y=(rating_points.loc[rating_points.index == rating, "stage_rating"] if graph_offset else
+            rating_points.loc[rating_points.index == rating, "stage_rating"] + rating_points.loc[rating_points.index == rating, "gzf"]),
+            line=dict(width=1),
+            name=f"{rating} GZF: {round(rating_points['gzf'].loc[rating_points.index == rating].mean(), 2)}",
+            showlegend=True
+        ), row=1, col=1)
+
+        fig.add_trace(go.Scatter(
+            x=rating_points.loc[rating_points.index == rating, "discharge_rating"],
+            y=(rating_points.loc[rating_points.index == rating, "stage_rating"] if graph_offset else
+            rating_points.loc[rating_points.index == rating, "stage_rating"] + rating_points.loc[rating_points.index == rating, "gzf"]),
+            line=dict(width=1),
+            name=f"{rating} GZF: {round(rating_points['gzf'].loc[rating_points.index == rating].mean(), 2)}",
+            showlegend=True
+        ), row=1, col=2)
+       
+
+        # Add raw observations
+
+        fig.add_trace(go.Scatter(
+            x=obs["parameter_observation"],
+            y=round(obs["observation_stage"] - gzf, 2),
+            mode='markers',
+            marker=dict(size=6, opacity=0.5, color="gray"),
+            text=obs["observation_number"],
+            name="obs",
+            showlegend=True
+        ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=obs["parameter_observation"],
+            y=round(obs["observation_stage"] - gzf, 2),
+            mode='markers',
+            marker=dict(size=6, opacity=0.5, color="gray"),
+            text=obs["observation_number"],
+            name="obs",
+            showlegend=True
+        ), row=1, col=2)
+       
+       
+        # Add mask observations with or without labels
         
+       
+        fig.add_trace(go.Scatter(
+            x=mask["parameter_observation"],
+            y=round(mask["observation_stage"] - gzf, 2),
+            mode='markers+text' if show_obs else 'markers',
+            marker=dict(size=10, color=mask['normalized_age'], colorscale="Mint"),
+            text=mask["observation_number"],
+            textposition="top center" if show_obs else None,
+            name="obs",
+            showlegend=True
+        ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=mask["parameter_observation"],
+            y=round(mask["observation_stage"] - gzf, 2),
+            mode='markers+text' if show_obs else 'markers',
+            marker=dict(size=10, color=mask['normalized_age'], colorscale="Mint"),
+            text=mask["observation_number"],
+            textposition="top center" if show_obs else None,
+            name="obs",
+            showlegend=True
+        ), row=1, col=2)
+
+        # Add tbl_addition if it exists
+        if not tbl_addition.empty:
+         
+            fig.add_trace(go.Scatter(
+                x=tbl_addition["parameter_observation"],
+                y=round(tbl_addition["observation_stage"].astype(float, errors='ignore') - gzf, 2),
+                mode='markers',
+                marker=dict(size=10, color='red'),
+                text=obs["observation_number"],
+                name="addition",
+                showlegend=True
+            ), row=1, col=1)
+            fig.add_trace(go.Scatter(
+                x=tbl_addition["parameter_observation"],
+                y=round(tbl_addition["observation_stage"].astype(float, errors='ignore') - gzf, 2),
+                mode='markers',
+                marker=dict(size=10, color='red'),
+                text=obs["observation_number"],
+                name="addition",
+                showlegend=True
+            ), row=1, col=2)
+        # Return Dash component
+        return html.Div(dcc.Graph(figure=fig), style={'width': '100%', 'height': '100%'}),
+
                             
-        return  html.Div(dcc.Graph(figure = fig), style = {'width': '100%', 'height': '100%'}), 
+
     else:
         return dash.no_update
 
