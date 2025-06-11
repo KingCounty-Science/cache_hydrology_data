@@ -15,7 +15,7 @@ import numpy as np
 #import schedule
 import pyodbc
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 pd.options.mode.chained_assignment = None  # default='warn', None is no warn
 config = configparser.ConfigParser()
 # config.read(r'C:\Users\ihiggins\.spyder-py3\gdata_config.ini')
@@ -675,6 +675,48 @@ def full_upload(df, parameter, site_sql_id, utc_offset):
     print("uplad")
     daily_table(parameter, site_sql_id, utc_offset)
     print("daily")
+
+def check_if_rating_exists(site_sql_id, rating):
+    print("rating check")
+    """sql_alchemy_connection = urllib.parse.quote_plus('DRIVER={'+driver+'}; SERVER='+server+'; DATABASE='+database+'; Trusted_Connection='+trusted_connection+';')
+    sql_engine = create_engine("mssql+pyodbc:///?odbc_connect=%s" % sql_alchemy_connection)
+    with sql_engine.connect() as conn:
+    #    result = conn.execute(text("SELECT COUNT(*) FROM tblFlowRatings WHERE G_ID = :site_id AND RTRIM(RatingNumber) = :rating"), {"site_id": site_sql_id, "rating": rating})
+    print("results", result)
+    count = result.scalar_one()
+
+    print("count", count)"""
+    count = 0 
+    return count
+
+
+def upload_rating(data):
+        sql_alchemy_connection = urllib.parse.quote_plus('DRIVER={'+driver+'}; SERVER='+server+'; DATABASE='+database+'; Trusted_Connection='+trusted_connection+';')
+        sql_engine = create_engine("mssql+pyodbc:///?odbc_connect=%s" % sql_alchemy_connection)
+        cnxn = sql_engine.raw_connection()
+        data.to_sql("tblFlowRatings", sql_engine, method=None, if_exists='append', index=False)
+        # try method=multi, None works
+        # try chunksize int
+
+        cnxn.close()
+
+def upload_rating_notes(data):
+        sql_alchemy_connection = urllib.parse.quote_plus('DRIVER={'+driver+'}; SERVER='+server+'; DATABASE='+database+'; Trusted_Connection='+trusted_connection+';')
+        sql_engine = create_engine("mssql+pyodbc:///?odbc_connect=%s" % sql_alchemy_connection)
+        cnxn = sql_engine.raw_connection()
+        data.to_sql("tblFlowRating_Stats", sql_engine, method=None, if_exists='append', index=False)
+        # try method=multi, None works
+        # try chunksize int
+
+        cnxn.close()
+
+def delete_rating(site_sql_id, rating):
+    sql_alchemy_connection = urllib.parse.quote_plus('DRIVER={'+driver+'}; SERVER='+server+'; DATABASE='+database+'; Trusted_Connection='+trusted_connection+';')
+    sql_engine = create_engine("mssql+pyodbc:///?odbc_connect=%s" % sql_alchemy_connection)
+    with sql_engine.begin() as conn:
+        conn.execute(text("""DELETE FROM tblFlowRatings WHERE G_ID = :site_id AND RTRIM(RatingNumber) = :rating"""), {"site_id": site_sql_id, "rating": rating})
+        conn.execute(text("""DELETE FROM tblFlowRating_Stats WHERE RTRIM(Rating_Number) = :rating"""),{"rating": rating})
+    
 #
 #def manual_upload():
 #    #parameter_upload_data = pd.read_csv(r"W:\STS\hydro\GAUGE\Temp\Ian's Temp\output.csv")

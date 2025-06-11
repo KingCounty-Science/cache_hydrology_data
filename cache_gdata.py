@@ -213,7 +213,7 @@ style={'display': 'flex', 'width': '100%', 'gap': '10px'}),
     html.Div(dcc.Graph(id='graph',figure=go.Figure(),config={'responsive': True}),),
 
     html.Div(id="graph_where"),
-
+    # it is hard to make this dcc dropdown take up enough room inclosing it in html.Div([]) restricts it to a small window
     html.Div(dcc.Dropdown(id='Ratings', value='NONE'), style={'display': 'block'}),
 
     html.Div(id="display"),
@@ -309,6 +309,7 @@ style={'display': 'flex', 'width': '100%', 'gap': '10px'}),
                             daq.NumericInput(id = "primer_hours", label='',labelPosition='',value=2,),]),
                 # realtime update info
                 html.Div([daq.ToggleSwitch(id='realtime_update'), html.Button(id="run_job", children="Run Job!"), html.Div(id='realtime_update_info'),], style={'display': 'flex', 'flex-direction': 'row'}), #dynamic default so sql query doesnt automatically correct for obs
+                html.Div([daq.ToggleSwitch(id='apply_discharge_offset', value=False), html.Div(id='offset_label') ], id='offset_container', style={'display': 'none', 'marginLeft': '1rem'}),
                 html.P(id="paragraph_id", children=["Button not clicked"]),
             # interpolation and graphing
             html.Div([
@@ -706,6 +707,31 @@ def Select_Ratings(parameter, site_sql_id):
         return [{'label': i, 'value': i} for i in ratings], {'display': 'block'}
     else:
         return [{'label': "NONE", 'value': "NONE"}], {'display': 'none'}
+    
+# rating corrections 
+
+# Show/hide the container based on parameter value
+@app.callback(
+    Output('offset_container', 'style'),
+    Input('parameter', 'children'))
+
+def toggle_offset_visibility(parameter):
+    if parameter == 'discharge':
+        return {'display': 'flex', 'alignItems': 'center', 'gap': '0.5rem'}
+    else:
+        return {'display': 'none'}
+
+
+# Update the label text based on toggle value
+@app.callback(
+    Output('offset_label', 'children'),
+    Input('apply_discharge_offset', 'value')
+)
+def update_label(toggle_value):
+    if toggle_value:
+        return "Apply individual discharge offsets"
+    else:
+        return "Do not apply individual discharge offsets"
 
 # all observations
 @app.callback(
@@ -972,13 +998,14 @@ def observations_dattable(observations, add_row_button_a, refresh_button_a, inra
 
     observations = pd.read_json(observations, orient="split")
         #observations = reformat_data(observations)
-
+    
    
     #print(observations)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] 
     #ctx = callback_context
     #if ctx.triggered: 
-    if not observations.empty and parameter != "0": 
+    if not observations.empty and parameter != "0":
+    #if parameter != "0": # get obs
         if "add_row_button_a.n_clicks" in changed_id:
                 rows.append({c['id']: '' for c in columns})  # Add a new blank row
                 return rows, columns#, [{"name": i, "id": i} for i in observations.columns]
@@ -1052,12 +1079,13 @@ def observations_dattable(observations, add_row_button_a, refresh_button_a, inra
     State('query_end_date', 'data'), # obs b),
     Input("to_observations_button", "n_clicks"),
     State('Select_Data_Source', 'value'),
-    Input("data_axis", "value")  # data level data or corrected_data (primary/secondary)
+    Input("data_axis", "value"),  # data level data or corrected_data (primary/secondary)
+    Input('apply_discharge_offset', 'value'),
 )
 
   
 
-def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_sql_id, rows, realtime_update, run_job, rating_number, basic_forward_fill, basic_backward_fill, fill_limit, fill_limit_number, fill_area, method, set_limit, limit_number, limit_direction, limit_area, fill_missing_data,data_interval, resample, query_start_date, query_end_date, to_observations_button, data_source, data_level):
+def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_sql_id, rows, realtime_update, run_job, rating_number, basic_forward_fill, basic_backward_fill, fill_limit, fill_limit_number, fill_area, method, set_limit, limit_number, limit_direction, limit_area, fill_missing_data,data_interval, resample, query_start_date, query_end_date, to_observations_button, data_source, data_level, apply_discharge_offset):
     
     
     from data_cleaning import reformat_data, initial_column_managment, column_managment, fill_timeseries
@@ -1139,7 +1167,7 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
                     
                 # Additional logic for specific parameters (e.g., discharge)
                 if (parameter == "discharge" or parameter == "FlowLevel") and rating_number != "NONE":   
-                    data = discharge_calculation(data, rating_number, site_sql_id)
+                    data = discharge_calculation(data, rating_number, site_sql_id, apply_discharge_offset) #apply_discharge_offset disabled=True
 
                 data = column_managment(data)
                     # Reformat the datetime for Dash graph display
