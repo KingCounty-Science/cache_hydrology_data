@@ -280,6 +280,7 @@ def add_row(new_rating_offset, n_clicks, rating_points, rating,  obs, edited_dat
             df = pd.DataFrame(edited_data)
             obs = pd.read_json(obs, orient='split')
             rating_points = pd.read_json(rating_points, orient='split')
+            rating_points = rating_points.loc[rating_points.index == rating]
 
             nulls_df = df[df["observation_stage"].isna() & df["parameter_observation"].isna() & df["entered_offset"].isna()].copy()
 
@@ -328,21 +329,34 @@ def add_row(new_rating_offset, n_clicks, rating_points, rating,  obs, edited_dat
             df = pd.concat([df_a, df_b, df_c, df_d, df_e, nulls_df]).sort_index()
                
             if 'offset_rating' in offset_rating:  # create a 'new rating' that is an offset of the existing rating
-                print("df")
-                print(df)
-                print("rating")
-                print(rating_points)
-                print("new rating points aka ovs")
-                print(edited_data)
-                
-                print("new")
+              
                 if df["observation_stage"].isna().all():
+                #if df[["observation_stage", "parameter_observation"]].isna().all().all():
+                #if df["parameter_observation"].isna().all():
                     new_rating = rating_points
                 else:
+                    df["stage_diff"] = df["stage_offset"] - df["stage_rating"]
+                    #new_rating = pd.merge(df[["observation_stage", "stage_offset", "rating_offset", "stage_rating", "parameter_observation"]], rating_points, on = "stage_rating", how = "right")
+                    new_rating = pd.merge(df[["observation_stage", "stage_rating", "stage_diff", "parameter_observation"]], rating_points, on = "stage_rating", how = "right")
                     
-                    new_rating = pd.merge(df[["observation_stage", "stage_offset", "rating_offset", "stage_rating", "parameter_observation"]], rating_points, on = "stage_rating", how = "right")
-                    #new_rating["q_offset"] = new_rating["parameter_observation"] - new_rating["discharge_rating"]
+                    #print("new rating merge")
+                    #print(new_rating)
+                    #new_rating["stage_diff"] = new_rating["stage_diff"].interpolate(method="linear", limit_area="inside").round(2)###new_rating = pd.merge(df[["observation_stage", "stage_offset", "parameter_observation"]], rating_points, left_on = "parameter_observation", right_on = "discharge_rating", how = "right")
+                    new_rating["stage_diff"] = (new_rating["stage_diff"].interpolate(method="linear", limit_area="inside").ffill().bfill()).round(2)
+                    #print("new rating interp")
+                    #print(new_rating)
+                    new_rating["stage_rating"] = (new_rating["stage_rating"]+new_rating["stage_diff"]).round(2)
+                    
+                    new_rating = new_rating[["stage_rating", "discharge_rating", "gzf"]]
+                    #print("new rating corrected stage")
+                    #print(new_rating)
+                    """ new_rating = pd.merge(new_rating[["stage_rating"]], rating_points, on = "stage_rating", how = "inner")
+                    print("new rating final merge")
                     print(new_rating)
+                    print("origional rating")
+                    print(rating_points)"""
+                    new_rating = new_rating.sort_values(by="stage_rating", ascending=True)
+                   
             edited_data = df.to_dict('records')
         # generate new rating
         if rating == "new rating" and df[df["observation_stage"].notna()].shape[0] > 1:
@@ -437,7 +451,8 @@ def save_rating(save_rating_button, delete_selected_rating, new_rating, rating, 
         new_rating = pd.read_json(new_rating, orient='split')
 
         #if rating == "new rating" and new_rating.notna() and new_rating_name != 0:
-        if rating == "new rating" and not new_rating.empty and new_rating_name.strip() != "":
+        #if rating == "new rating" and not new_rating.empty and new_rating_name.strip() != "":
+        if not new_rating.empty and new_rating_name.strip() != "":
             
             # rename for sql compatability
             new_rating.reset_index(drop=True, inplace=True)
@@ -479,7 +494,6 @@ def save_rating(save_rating_button, delete_selected_rating, new_rating, rating, 
             return True, f"Rating {rating} deleted"
     else:
         return False, "no message"
-    
     
 
 
@@ -555,12 +569,6 @@ def calculate_points(stage_a, discharge_a, stage_b, discharge_b, stage_x, discha
     
     except Exception as e:
         return f"no values calulated - - {e}"
-    
-   
-    #    return f'calculated value: {output}'
-    
-
-
 
 @app.callback(
     #Output("tbl", "data"),
@@ -631,8 +639,9 @@ def get_observations(rating_points, rating, slider_range, obs, site_id):
     Input("site_id", "value"),
     Input("show_obs", "value"),
     Input("graph_offset", "value"),
-    Input("new_rating", 'data'))
-def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, site_id, show_obs, graph_offset, new_rating):
+    Input("new_rating", 'data'),
+    Input('offset-toggle', 'value'),)
+def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, site_id, show_obs, graph_offset, new_rating, offset_rating):
     if site_id != "":
         tbl_addition = pd.DataFrame(tbl_addition)
         obs = pd.read_json(obs, orient='split')
@@ -649,6 +658,7 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, sit
 
         else:
             rating_points = pd.read_json(rating_points, orient='split')
+            rating_points = rating_points.loc[rating_points.index == rating]
        
 
         if graph_offset == True:
@@ -701,6 +711,18 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, sit
             rating_points.loc[rating_points.index == rating, "stage_rating"] + rating_points.loc[rating_points.index == rating, "gzf"]),
             line=dict(width=1),
             name=f"{rating} GZF: {round(rating_points['gzf'].loc[rating_points.index == rating].mean(), 2)}",
+            showlegend=True), row=1, col=1)
+        
+        #### if offset rating add this as well
+        if 'offset_rating' in offset_rating and new_rating:
+            new_rating = pd.read_json(new_rating, orient='split')
+            
+            fig.add_trace(go.Scatter(
+            x=new_rating[ "discharge_rating"],
+            y=(new_rating["stage_rating"] if graph_offset else
+            new_rating["stage_rating"] + new_rating["gzf"]),
+            line=dict(width=1, dash="dash"),  
+            name=f"rating offset GZF: {round(new_rating['gzf'].mean(), 2)}",
             showlegend=True), row=1, col=1)
 
         # Add raw observations
@@ -758,26 +780,47 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, sit
      
         fig.add_trace(go.Scatter(
             x=[0] * len(rating_points.loc[rating_points.index == rating]),  # All x-values = 0
-            y=rating_points.loc[rating_points.index == rating, "stage_rating"] + gzf,
+            y=rating_points.loc[rating_points.index == rating, "stage_rating"],
             line=dict(width=1),
             name=f"{rating} GZF: {round(rating_points['gzf'].loc[rating_points.index == rating].mean(), 2)}",
             showlegend=True
         ), row=1, col=2)
-        
+
+        if 'offset_rating' in offset_rating and not new_rating.empty:
+            #new_rating = pd.read_json(new_rating, orient='split')
+            #rating_off = pd.merge(rating_points, new_rating, on = "stage_rating")
+
+            print("current rating")
+            print(rating_points)
+            print("new rating")
+            print(new_rating)
+
+            q_merge = pd.merge(rating_points[["stage_rating", "discharge_rating"]].rename(columns={"stage_rating": "original_stage"}), new_rating, on = "discharge_rating", how = "right")
+            q_merge["offset"] = round(q_merge["original_stage"] - q_merge["stage_rating"], 2)
+            print("Q merge")
+            print(q_merge)
+           
+           # print(rating_off)
         # Add tbl_addition if it exists
-        """if not tbl_addition.empty:
+
+            fig.add_trace(go.Scatter(
+                x=q_merge["offset"],  # All x-values = 0
+                y=(q_merge["stage_rating"]),
+                line=dict(width=1, dash="dash"),
+                name=f"offset rating",
+                showlegend=True
+            ), row=1, col=2)
+
+            
+        if not tbl_addition.empty:
             fig.add_trace(go.Scatter(
                 x=tbl_addition["rating_offset"],
-                y=round(tbl_addition["observation_stage"], 2),
+                y = tbl_addition["observation_stage"].astype(float, errors='ignore'),
                 mode='markers',
                 marker=dict(size=10, color='red'),
                 text=tbl_addition["observation_number"],
-                name="addition",
-                showlegend=True
-            ), row=1, col=2)"""
+                name="addition", showlegend=True), row=1, col=2)
 
-       
-        
         if not tbl.empty:
             #tbl = pd.DataFrame(tbl)
             """fig.add_trace(go.Scatter(

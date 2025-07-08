@@ -9,7 +9,7 @@ from datetime import datetime
 from datetime import timedelta
 import urllib
 import configparser
-
+from sqlalchemy.exc import IntegrityError
 import numpy as np
 #import win32com.client as win32
 #import schedule
@@ -111,8 +111,8 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         df[config[parameter]['provisional']] = "0"
         return df
 
-    def gallons_pumped_column():
-        df[config[parameter]['amount_pumped']] = "0"
+    def groundwater_temperature_column():
+        df[config[parameter]['groundwater_temperature']] = np.nan
         return df
 
     def pump_on_column():
@@ -336,9 +336,9 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
     if parameter == 'groundwater_level':
         df = auto_timestamp_column()
         df = est_column()
-        df = gallons_pumped_column()
         df = lock_column()
         df = provisional_column()
+        df = groundwater_temperature_column()
         df = pump_on_column()
         df = site_id(site_sql_id)
         df = utc_offset_column(utc_offset)
@@ -394,275 +394,110 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
 
     return df
 
-def daily_table(parameter, site_sql_id, utc_offset):
-    '''updates daily table, regardless of weither data was uploaded
-    behaves similarly to discharge upload function'''
-    # get 15 minute data last value
-    # agnostic to actual interval
-   
-    cursor = conn.cursor()
-    existing_data = cursor.execute("select max("+str(config[parameter]['datetime'])+") from "+str(config[parameter]['table'])+" WHERE G_ID = "+str(site_sql_id)+";").fetchval().date()
-    cursor.close()
-    # get daily table last value
-    try:
-        cursor = conn.cursor()
-        existing_daily_data = cursor.execute("select max("+str(config[parameter]['daily_datetime'])+") from "+str(config[parameter]['daily_table'])+" WHERE G_ID = "+str(site_sql_id)+";").fetchval().date()
-        cursor.close()
-    except AttributeError:
-        # if there is no data present
-        existing_daily_data = datetime.strptime("1900-1-1", '%Y-%m-%d').date()
-        # def discharge_column():
-            # df.rename(columns={"discharge": config[parameter]['discharge']}, inplace=True)
-            # return df
-    
-    def est_column():
-        data[config[parameter]["daily_estimate"]] = "0"
-        return data
-    def depth_column():
-        data[config[parameter]["daily_depth"]] = "0"
-        return data
 
-    def ice_column():
-        data[config[parameter]["daily_ice"]] = "0"
-        return data
-    
-    def lock_column():
-        data[config[parameter]["daily_lock"]] = "0"
-        return data
 
-    def warning_column():
-        data[config[parameter]["daily_warning"]] = "0"
-        return data
+def calculate_daily_values(start_date, end_date, parameter, site_sql_id):
+    sql_alchemy_connection = urllib.parse.quote_plus('DRIVER={'+driver+'}; SERVER='+server+'; DATABASE='+database+'; Trusted_Connection='+trusted_connection+';')
+    sql_engine = create_engine("mssql+pyodbc:///?odbc_connect=%s" % sql_alchemy_connection)
+    """takes a date range from either daily insufficient data or missing data returns a df calculated daily values"""
+    daily_data = []
+    if start_date:
+        # standard columns
+        derived_mean = "" # used for discharge
+        derived_max = ""    # used for discharge
+        derived_min = ""    # used for discharge
 
-    def provisional_column():
-        data[config[parameter]['daily_provisional']] = "0"
-        return data
+        daily_sum = ""
 
-    def gallons_pumped_column():
-        data[config[parameter]['gallons_pumped']] = ""
-        return data
+        provisional = f"MAX( CAST({config[parameter]['provisional']} AS INT)) AS {config[parameter]['daily_provisional']}, " # standard provisional
+        snow = "" # used for rain
 
-    def pump_on_column():
-        data[config[parameter]['pump_on']] = "0"
-        return data
+        depth = "" # used for rain
+        ice = "" # used for rain
+        daily_sum = "" # used for rain
 
-    def auto_timestamp_column():
-        # time_now = pd.to_datetime('today')
-        data[config[parameter]['daily_auto_timestamp']] = pd.to_datetime('today')
-        data[config[parameter]['daily_auto_timestamp']] = data[config[parameter]['daily_auto_timestamp']].dt.strftime('%m/%d/%Y %H:%M')
-        data[config[parameter]["daily_provisional"]] = "-1"
-        return data
-
-    def utc_offset_column(utc_offset):
-        data[config[parameter]['utc_offset']] = str(utc_offset)
-        return data
-
-    def snow_column():
-        data[config[parameter]['daily_snow']] = "0"
-        return data 
-        
-    def site_id(site_sql_id):
-        data["G_ID"] = str(site_sql_id)
-        return data
-
-    def sql_time(utc_offset):
-
-        data[config[parameter]['datetime']] = data[config[parameter]['datetime']].dt.strftime('%m/%d/%Y')
-        data[config[parameter]["daily_datetime"]] = data[config[parameter]['datetime']]
-        return data
-
-    # The actual daily data upload
-    def daily_upload(data):
-        sql_alchemy_connection = urllib.parse.quote_plus('DRIVER={'+driver+'}; SERVER='+server+'; DATABASE='+database+'; Trusted_Connection='+trusted_connection+';')
-        sql_engine = create_engine("mssql+pyodbc:///?odbc_connect=%s" % sql_alchemy_connection)
-        cnxn = sql_engine.raw_connection()
-        data.to_sql(config[parameter]['daily_table'], sql_engine, method=None, if_exists='append', index=False)
-        # try method=multi, None works
-        # try chunksize int
-
-        cnxn.close()
-
-    # if the daily table needs updating
-
-    if existing_daily_data < existing_data:
-        end_date = existing_data
-        # pull old data + 1 day
-        start_date = existing_daily_data - timedelta(days=2)
-        # new_data = pd.read_sql_query('select '+config[parameter]['datetime']+','+config[parameter]['corrected_data']+','+config[parameter]['discharge']+' from '+config[parameter]['table']+' WHERE G_ID = '+str(site_sql_id)+' AND '+config[parameter]['datetime']+' between ? and ?', conn, params=[str(start_date), str(end_date)])
-        # Delete existing data for time peroid in question
-        conn.execute(f"delete from {config[parameter]['daily_table']} WHERE G_ID = {site_sql_id} AND {config[parameter]['daily_datetime']} between ? and ?", start_date.strftime('%m/%d/%Y'), end_date.strftime('%m/%d/%Y'))
-        conn.commit()
-        try:
-            new_data = pd.read_sql_query('select '+config[parameter]['datetime']+','+config[parameter]['corrected_data']+','+config[parameter]['discharge']+' from '+config[parameter]['table']+' WHERE G_ID = '+str(site_sql_id)+' AND '+config[parameter]['datetime']+' between ? and ?', conn, params=[str(start_date), str(end_date)])
-            new_data.rename(columns={
-                config[parameter]['datetime']: "datetime",
-                config[parameter]['corrected_data']: "corrected_data",
-                config[parameter]['discharge']: "discharge",
-            }, inplace=True)
-        except:
-            new_data = pd.read_sql_query('select '+config[parameter]['datetime']+','+config[parameter]['corrected_data']+' from '+config[parameter]['table']+' WHERE G_ID = '+str(site_sql_id)+' AND '+config[parameter]['datetime']+' between ? and ?', conn, params=[str(start_date), str(end_date)])
-            new_data.rename(columns={
-                config[parameter]['datetime']: "datetime",
-                config[parameter]['corrected_data']: "corrected_data",
-            }, inplace=True)
-        if parameter == "rain":
-            # resample 15 minute to daily
-            new_data.set_index('datetime', inplace=True)
-            corrected_data = new_data.resample('D')['corrected_data'].agg(['sum', 'count'])
-            corrected_data.reset_index(inplace=True)
-            # corrected_data = corrected_data[["datetime":config[parameter]['datetime'], "mean":config[parameter]['corrected_data_mean'], "max":config[parameter]['corrected_data_max'], "min":config[parameter]['D_MinStage'], "count":config[parameter]['daily_record_count']]].copy
-            corrected_data.rename(columns={
-                "datetime": config[parameter]["datetime"],
-                "sum": config[parameter]["daily_sum"],
-                "count": config[parameter]["daily_record_count"],
-            }, inplace=True)
-        else:
-            # resample 15 minute to daily
-            new_data.set_index('datetime', inplace=True)
-            corrected_data = new_data.resample('D')['corrected_data'].agg(['mean', 'max', 'min', 'count'])
-            corrected_data.reset_index(inplace=True)
-            # corrected_data = corrected_data[["datetime":config[parameter]['datetime'], "mean":config[parameter]['corrected_data_mean'], "max":config[parameter]['corrected_data_max'], "min":config[parameter]['D_MinStage'], "count":config[parameter]['daily_record_count']]].copy
-            corrected_data.rename(columns={
-                "datetime": config[parameter]["datetime"],
-                "mean": config[parameter]["daily_mean"],
-                "max": config[parameter]["daily_max"],
-                "min": config[parameter]["daily_min"],
-                "count": config[parameter]["daily_record_count"],
-            }, inplace=True)
-
-        if parameter == "air_temperature":
-            data = corrected_data
-            # add other columns
-            data = auto_timestamp_column()
-            # df = discharge_column()
-            data = est_column()
-            data = lock_column()
-            data = provisional_column()
-            data = utc_offset_column(utc_offset)
-            data = warning_column()
-            data = site_id(site_sql_id)
-            # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
-            data = sql_time(utc_offset)
-            # drop columns
-            data.drop(columns=[config[parameter]["datetime"], config[parameter]["utc_offset"]], inplace=True)
-            daily_upload(data)
-            
-        if parameter == "water_temperature":
-            data = corrected_data
-            # add other columns
-            data = auto_timestamp_column()
-            # df = discharge_column()
-            data = est_column()
-            data = depth_column()
-            data = ice_column()
-            data = lock_column()
-            data = provisional_column()
-            data = utc_offset_column(utc_offset)
-            data = warning_column()
-            data = site_id(site_sql_id)
-            # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
-            data = sql_time(utc_offset)
-            # drop columns
-            data.drop(columns=[config[parameter]["datetime"], config[parameter]["utc_offset"]], inplace=True)
-            daily_upload(data)
-        if parameter == "barometer":
-            data = corrected_data
-            # add other columns
-            data = auto_timestamp_column()
-            # df = discharge_column()
-            data = est_column()
-            data = lock_column()
-            data = provisional_column()
-            data = utc_offset_column(utc_offset)
-            data = warning_column()
-            data = site_id(site_sql_id)
-            # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
-            data = sql_time(utc_offset)
-            # drop columns
-            data.drop(columns=[config[parameter]["datetime"], config[parameter]["utc_offset"]], inplace=True)
-            daily_upload(data)
-
+        # parameter specific specially formatted columns
         if parameter == "discharge":
-            discharge = new_data.resample('D')['discharge'].agg(['mean', 'max', 'min'])
-            discharge.reset_index(inplace=True)
-            discharge.rename(columns={
-                "datetime": config[parameter]["datetime"],
-                "mean": config[parameter]["discharge_mean"],
-                "max": config[parameter]["discharge_max"],
-                "min": config[parameter]["discharge_min"],
-            }, inplace=True)
-            data = corrected_data.merge(discharge, left_on=config[parameter]["datetime"], right_on=config[parameter]["datetime"])
-            # add other columns
-            data = auto_timestamp_column()
-            # df = discharge_column()
-            data = est_column()
-            data = lock_column()
-            data = provisional_column()
-            data = utc_offset_column(utc_offset)
-            data = warning_column()
-            data = site_id(site_sql_id)
-            # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
-            data = sql_time(utc_offset)
-            # drop columns
-            data.drop(columns=[config[parameter]["datetime"], config[parameter]["utc_offset"]], inplace=True)
-            daily_upload(data)
-
-        if parameter == "water_level":
-            data = corrected_data
-            # add other columns
-            data = auto_timestamp_column()
-            # df = discharge_column()
-            data = est_column()
-            data = lock_column()
-            data = provisional_column()
-            data = utc_offset_column(utc_offset)
-            data = warning_column()
-            data = site_id(site_sql_id)
-            # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
-            data = sql_time(utc_offset)
-            # drop columns
-            data.drop(columns=[config[parameter]["datetime"], config[parameter]["utc_offset"]], inplace=True)
-            daily_upload(data)
+                derived_mean = f"ROUND(AVG({config[parameter]['discharge']}), 2) AS {config[parameter]['discharge_mean']}, "
+                derived_max = f"ROUND(MAX({config[parameter]['discharge']}), 2) AS {config[parameter]['discharge_max']}, "
+                derived_min = f"ROUND(MAX({config[parameter]['discharge']}), 2) AS {config[parameter]['discharge_min']}, "
                 
-        if parameter == "rain":
-            data = corrected_data
-            # add other columns
-            data = auto_timestamp_column()
-            # df = discharge_column()
-            data = est_column()
-            data = snow_column()
-            data = lock_column()
-            data = provisional_column()
-            data = utc_offset_column(utc_offset)
-            data = warning_column()
-            data = site_id(site_sql_id)
-            # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
-            data = sql_time(utc_offset)
-            # drop columns
-            data.drop(columns=[config[parameter]["datetime"], config[parameter]["utc_offset"]], inplace=True)
-            daily_upload(data)
+        if parameter == "conductivity":
+                provisional = ""
 
-        if parameter == "turbidity":
-            data = corrected_data
-            # add other columns
-            data = auto_timestamp_column()
-            # df = discharge_column()
-            data = est_column()
-            data = lock_column()
-            data = provisional_column()
-            data = utc_offset_column(utc_offset)
-            data = warning_column()
-            data = site_id(site_sql_id)
-            # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
-            data = sql_time(utc_offset)
-            # drop columns
-            data.drop(columns=[config[parameter]["datetime"], config[parameter]["utc_offset"]], inplace=True)
-            daily_upload(data)
-    # if the daily table does not need updating
-    else:
-        # return an empty data frame, a bit hacky but it prevents needless blank sql inserts later
-        data = []
-        data = pd.DataFrame(data, columns=[])
+        if parameter == "rain": # this progrma will calculate min/mix/avg but those columns will be removed by column managment
+                daily_sum = f"ROUND(SUM({config[parameter]['corrected_data']}), 2) AS {config[parameter]['daily_sum']}, "
+                snow =  f"MAX( CAST({config[parameter]['snow']} AS INT)) AS {config[parameter]['daily_snow']}, "
+    
+        if parameter == "water_temperature":
+                depth = f"ROUND( AVG( CAST({config[parameter]['ice']} AS INT) ) , 2) AS {config[parameter]['daily_depth']}, "
+                ice =  f"MAX( CAST({config[parameter]['ice']} AS INT)) AS {config[parameter]['daily_ice']}, "
+        groundwater_temperature = ""
+        if parameter == "groundwater_level":
+                groundwater_temperature =  f"ROUND(AVG({config[parameter]['groundwater_temperature']}), 2) AS {config[parameter]['groundwater_temperature']}, "
+        with sql_engine.begin() as conn:
+                # 120 is yyyy-mm-dd hh:mi:ss
+                # 105 dd-mm-yyyy
+                #new_data = pd.read_sql_query('select '+config[parameter]['datetime']+','+config[parameter]['corrected_data']+' from '+config[parameter]['table']+' WHERE G_ID = '+str(site_sql_id)+' AND '+config[parameter]['datetime']+' between ? and ?', conn, params=[str(start_date), str(end_date)])            
+            
+                daily_data = pd.read_sql_query(f"SELECT CAST({config[parameter]['datetime']} AS DATE) AS {config[parameter]['daily_datetime']}, "
+                                                f"{site_sql_id} AS {config[parameter]['site_sql_id']}, "
+                                                f"ROUND(AVG({config[parameter]['corrected_data']}), 2) AS {config[parameter]['daily_mean']}, ROUND(MAX({config[parameter]['corrected_data']}), 2) AS {config[parameter]['daily_max']}, ROUND(MIN({config[parameter]['corrected_data']}), 2) AS {config[parameter]['daily_min']}, "
+                                                f"{derived_mean}{derived_max}{derived_min}"
+                                                f"COUNT(*) AS {config[parameter]['daily_record_count']}, "
+                                                f"MAX( CAST({config[parameter]['estimate']} AS INT)) AS {config[parameter]['daily_estimate']}, "
+                                                f"MAX( CAST({config[parameter]['warning']} AS INT)) AS {config[parameter]['daily_warning']}, "
+                                                f"{daily_sum}"
+                                                f"{groundwater_temperature}"
+                                                f"{snow}"
+                                                f"{ice}"
+                                                f"{depth}"
+                                                f"{provisional}"
+                                                f"MAX( CAST({config[parameter]['lock']} AS INT)) AS {config[parameter]['daily_lock']} "
+                                                f"FROM {config[parameter]['table']} "
+                                                f"WHERE G_ID = {site_sql_id} AND CAST({config[parameter]['datetime']} AS DATE) BETWEEN '{start_date}' AND '{end_date}' "
+                                                f"GROUP BY CAST({config[parameter]['datetime']} AS DATE) ", conn)
+                daily_data[f"{config[parameter]['daily_auto_timestamp']}"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+                print("daily data")
+                print(daily_data)
+        # arrange columns in desired order
+        with sql_engine.begin() as conn:
+            desired_order = pd.read_sql_query(f"SELECT TOP 1 * "
+                                                f"FROM {config[parameter]['daily_table']} "
+                                                f"WHERE G_ID = {site_sql_id} ", conn)
+            
+        desired_order = desired_order.columns.tolist()
+        existing_columns = [col for col in desired_order if col in daily_data.columns]         # Filter out columns that exist in the DataFrame
+        daily_data = daily_data[existing_columns]
+
+        for index, row in daily_data.iterrows():
+            try:
+                daily_data.loc[daily_data.index == index].to_sql(config[parameter]['daily_table'], sql_engine, method=None, if_exists='append', index=False)
+            except IntegrityError:
+               
+                row_dict = row.to_dict()
+                
+                update_cols = [col for col in row_dict if col not in ["G_ID", config[parameter]['daily_datetime']]]
+                key_cols = ["G_ID", config[parameter]['daily_datetime']]
+
+                set_clause = ",\n    ".join([f"{col} = ?" for col in update_cols])
+                where_clause = " AND ".join([f"{col} = ?" for col in key_cols])
+
+                update_sql = f"""
+                UPDATE {config[parameter]['daily_table']}
+                SET
+                    {set_clause}
+                WHERE {where_clause}
+                """
+                
+
+                #update_values =  [row_dict[col] for col in key_cols] + [row_dict[col] for col in update_cols]
+                update_values = [row_dict[col] for col in update_cols] + [row_dict[col] for col in key_cols]
+           
+                with sql_engine.begin() as cnn:
+                    cnn.execute(update_sql, update_values)
+
+    return daily_data
 
 
 def full_upload(df, parameter, site_sql_id, utc_offset):
@@ -673,7 +508,13 @@ def full_upload(df, parameter, site_sql_id, utc_offset):
     print("delete")
     upload_data(df, parameter, site_sql_id, utc_offset)
     print("uplad")
-    daily_table(parameter, site_sql_id, utc_offset)
+    df[config[parameter]['datetime']] = pd.to_datetime(df[config[parameter]['datetime']], errors='coerce')
+
+    # Get max date, strip time, add 2 days
+    start_date = df[config[parameter]['datetime']].min().normalize() - pd.Timedelta(days=2)
+    end_date = df[config[parameter]['datetime']].max().normalize() + pd.Timedelta(days=2)
+    calculate_daily_values(start_date, end_date, parameter, site_sql_id)
+   
     print("daily")
 
 def check_if_rating_exists(site_sql_id, rating):
@@ -717,34 +558,3 @@ def delete_rating(site_sql_id, rating):
         conn.execute(text("""DELETE FROM tblFlowRatings WHERE G_ID = :site_id AND RTRIM(RatingNumber) = :rating"""), {"site_id": site_sql_id, "rating": rating})
         conn.execute(text("""DELETE FROM tblFlowRating_Stats WHERE RTRIM(Rating_Number) = :rating"""),{"rating": rating})
     
-#
-#def manual_upload():
-#    #parameter_upload_data = pd.read_csv(r"W:\STS\hydro\GAUGE\Temp\Ian's Temp\output.csv")
-#    #parameter_upload_data = pd.read_csv(r"C:\Users\ihiggins\Documents\raw.csv")
-#    df = pd.read_csv(r"C:\Users\ihiggins\OneDrive - King County\cache_upload\COS_Site02_water_temperature_2022_02_08.csv")
-#
-#    #parameter_upload_data.rename(columns={"Water_Level_ft": "data"}, inplace=True)
-#    #parameter_upload_data.drop(columns=['Estimate'], inplace=True)
-#    parameter = "water_temperature"
-#    df = df.rename(columns={config[parameter]["datetime"]: "datetime", config[parameter]["data"]: "data", config[parameter]["corrected_data"]: "corrected_data"})
-#    df = df[["datetime", "data", "corrected_data"]]
-#    offset = 0
-#
-#    site_name = "wl1509w"
-#    site_sql_id = 1899
-#    utc_offset = 7
-#
-#    clean_file(df, parameter, site_sql_id, utc_offset)
-#    print(df)
-#    delete_data(df, parameter, site_sql_id)
-#    upload_data(df, parameter, site_sql_id, utc_offset)
-#    daily_table(parameter, site_sql_id, utc_offset)
-#
-#manual_upload()
-
-
-
-# clean_file()
-# takes data as parameter_upload_data, parameter, site_name
-# delete_data()
-# upload_data

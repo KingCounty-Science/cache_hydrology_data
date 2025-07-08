@@ -697,12 +697,13 @@ def save_fig(df, site_selector_value, site_sql_id, site, parameter, comparison_d
     
     if parameter == "discharge":
         if "rating_number" in df.columns:
+            q_obs_df = df.dropna(subset = ["q_observation"]).copy()
             # discharge plot at top of graph
-            fig.text(0.01, 0.99, f"""rating {df.loc[df['datetime'] == df['datetime'].min(), 'rating_number'].dropna().iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
-            fig.text(0.01, 0.96, f"""obs {df.loc[df['datetime'] == df['datetime'].min(), 'q_observation'].dropna().iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
+            fig.text(0.01, 0.99, f"""rating {q_obs_df.loc[q_obs_df['datetime'] == q_obs_df['datetime'].min(), 'rating_number'].iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
+            fig.text(0.01, 0.96, f"""obs {q_obs_df.loc[q_obs_df['datetime'] == q_obs_df['datetime'].min(), 'q_observation'].iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
             
-            fig.text(0.80, 0.99, f"""rating {df.loc[df['datetime'] == df['datetime'].max(), 'rating_number'].dropna().iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
-            fig.text(0.80, 0.96, f"""obs {df.loc[df['datetime'] == df['datetime'].max(), 'q_observation'].dropna().iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
+            fig.text(0.80, 0.99, f"""rating {q_obs_df.loc[q_obs_df['datetime'] == q_obs_df['datetime'].max(), 'rating_number'].iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
+            fig.text(0.80, 0.96, f"""obs {q_obs_df.loc[q_obs_df['datetime'] == q_obs_df['datetime'].max(), 'q_observation'].iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
         
         #fig.text(0.80, -.1,  f"""rating {df.loc[df['datetime'] == df['datetime'].max(), 'rating_number'].dropna().iloc[0]}""")
     
