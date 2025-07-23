@@ -99,7 +99,7 @@ app.layout = html.Div([
 
 
     html.Div([
-        dcc.Dropdown(id='site_id', options=[{'label': i, 'value': i} for i in available_sites], value="", style={'width': '200px', 'margin-right': '10px'}),
+        dcc.Dropdown(id='site_id', options=[{'label': i, 'value': i} for i in available_sites], value=""),
         dcc.Dropdown(id='rating_list', style={'width': '200px'}),
         #html.Button('save rating', id='save_rating_button', n_clicks=0),
     ], style={'display': 'flex', 'align-items': 'center'}),
@@ -109,7 +109,7 @@ app.layout = html.Div([
     #dcc.Dropdown(id='rating_list'),
     
     html.P("Filter by rating:"),
-    dcc.RangeSlider(id='range-slider', marks=None, tooltip={"placement": "bottom","always_visible": True,"style": {"color": "LightSteelBlue", "fontSize": "20px"},},),
+    dcc.RangeSlider(id='range-slider', marks=None, tooltip={"placement": "bottom","always_visible": True,},),
         
     #dcc.Graph(id="scatter-plot"),
     html.Div([

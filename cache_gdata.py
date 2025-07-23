@@ -802,8 +802,33 @@ def daterange(observations, startDate, endDate, site, site_sql_id, parameter, da
         
         #obs_a_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}" for _, row in obs.iterrows()]
         
-        obs_a_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M') if pd.notna(row['datetime']) else ''} observation: {row['observation_number']}" for _, row in obs.iterrows()] # returns blank for bad data
-        if obs_a != "": # filter observations so you only see observations greater then first selection
+        #obs_a_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M') if pd.notna(row['datetime']) else ''} observation: {row['observation_number']}" for _, row in obs.iterrows()] # returns blank for bad data
+        # Step 1: Your original observation options (filtered for valid datetimes)
+        obs_a_options = [
+            f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}"
+            for _, row in obs.iterrows()
+            if pd.notna(row['datetime'])
+        ]
+
+        # Step 2: Extract unique years from valid datetimes
+        obs_years = obs['datetime'].dropna().dt.year.unique().tolist()
+
+        # Step 3: Ensure current year is included
+        current_year = datetime.now().year
+        if current_year not in obs_years:
+            obs_years.append(current_year)
+
+        # Step 4: Add "year: XXXX" options
+        year_options = [f"water year: {year}" for year in sorted(obs_years)]
+
+        # Step 5: Combine both lists
+        obs_a_options = year_options + obs_a_options
+        if obs_a and str(obs_a).lower().startswith("water year"):
+            year_str = str(obs_a).lower().replace("water year:", "").strip()
+            # Optionally convert to int if needed:
+            year = int(year_str)
+            query_start_date = datetime(year-1, 10, 1, 0, 0).strftime('%Y-%m-%d %H:%M')
+        elif obs_a != "": # filter observations so you only see observations greater then first selection
             obs_a = obs_a.split("date: ")[1].split(" observation:")[0].strip()
             obs_a = datetime.strptime(obs_a, '%Y-%m-%d %H:%M')
             obs = obs.loc[obs["datetime"] > obs_a]
@@ -830,8 +855,34 @@ def daterange(observations, startDate, endDate, site, site_sql_id, parameter, da
         #        query_start_date = import_data['datetime'].min()
         #        print("no obs import data obs a", query_start_date)
         #obs_b_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}" for _, row in obs.iterrows()]
-        obs_b_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M') if pd.notna(row['datetime']) else ''} observation: {row['observation_number']}" for _, row in obs.iterrows()] # returns blank for bad data
-        if obs_b != "":
+        #obs_b_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M') if pd.notna(row['datetime']) else ''} observation: {row['observation_number']}" for _, row in obs.iterrows()] # returns blank for bad data
+        # Step 1: Clean per-observation options
+        obs_b_options = [
+            f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}"
+            for _, row in obs.iterrows()
+            if pd.notna(row['datetime'])
+        ]
+
+        # Step 2: Extract unique years from valid datetimes
+        obs_years = obs['datetime'].dropna().dt.year.unique().tolist()
+
+        # Step 3: Ensure current year is included
+        current_year = datetime.now().year
+        if current_year not in obs_years:
+            obs_years.append(current_year)
+
+        # Step 4: Add "year: XXXX" options
+        year_options = [f"water year: {year}" for year in sorted(obs_years)]
+
+        # Step 5: Combine both lists
+        obs_b_options = year_options + obs_b_options
+        if obs_b and str(obs_b).lower().startswith("water year"):
+            year_str = str(obs_b).lower().replace("water year:", "").strip()
+            # Optionally convert to int if needed:
+            year = int(year_str)
+            query_end_date = datetime(year, 10, 1, 0, 0).strftime('%Y-%m-%d %H:%M')
+             
+        elif obs_b != "":
             obs_b = obs_b.split("date: ")[1].split(" observation:")[0].strip()
             obs_b = datetime.strptime(obs_b, '%Y-%m-%d %H:%M')
             query_end_date = pd.to_datetime(obs_b).to_pydatetime()
