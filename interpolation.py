@@ -769,11 +769,14 @@ def cache_comparison_interpolation(df, site, site_sql_id, parameter, start_date,
     
     return(df)
 
-def resample(df, data_interval):
+def resample_data(df, data_interval):
+    # once I added the comparison twice which caused duplicate datetimes and resulted in this failing
+    """ reamples datetime to specified interval, interpolates raw data (data) and fills in estimate and warning"""
     df.set_index("datetime", inplace=True)
     df = df.resample(f'{data_interval}T').asfreq(fill_value=np.nan)
     #df = df.resample(f'{data_interval}T').interpolate(method='linear')
     df.reset_index(level=None, drop=False, inplace=True)
+
     df["data"] = df['data'].interpolate(method='linear')
     df["data"] = round(df["data"], 2)
     if 'estimate' in df.columns:
@@ -783,57 +786,72 @@ def resample(df, data_interval):
     if "warning" in df.columns:
         df["warning"] = df["warning"].ffill()
         df["warning"] = df["warning"].bfill()
-    #df = df.resample(f'{data_interval}T').interpolate(method='linear')
-    """data.set_index("datetime", inplace=True)
-    #data = data.resample('15T').asfreq(fill_value="NaN")
-    data = data.resample(f'{data_interval}T').interpolate(method='linear', limit=4)
-    #data = data.interpolate(method='linear', limit=4)
-    data.reset_index(level=None, drop=False, inplace=True)"""
-
     return df
 
-def basic_interpolation(df, method, set_limit, limit_number, direction, area):
+def basic_interpolation(df, method, set_limit, limit_number, direction, area, interp_data, interp_corrected_data):
+    if 'on' in interp_data:
+        if set_limit == "limit": # limit consecutive na values
+            df["data"] = df["data"].interpolate(method=method, limit = limit_number, limit_direction = direction, limit_area = area)
+        if set_limit == "no limit": # do not limit consecutive na values
+            df["data"] = df["data"].interpolate(method=method, limit_direction = direction, limit_area = area)
+        df["data"] = round(df["data"], 2)
+        if 'estimate' in df.columns:
+            df["estimate"] = df["estimate"].ffill()
+            df["estimate"] = df["estimate"].bfill()
 
-    if set_limit == "limit": # limit consecutive na values
-        df["data"] = df["data"].interpolate(method=method, limit = limit_number, limit_direction = direction, limit_area = area)
-    if set_limit == "no limit": # do not limit consecutive na values
-        df["data"] = df["data"].interpolate(method=method, limit_direction = direction, limit_area = area)
-    df["data"] = round(df["data"], 2)
-    if 'estimate' in df.columns:
-        df["estimate"] = df["estimate"].ffill()
-        df["estimate"] = df["estimate"].bfill()
-
-    if "warning" in df.columns:
-        df["warning"] = df["warning"].ffill()
-        df["warning"] = df["warning"].bfill()
-    
+        if "warning" in df.columns:
+            df["warning"] = df["warning"].ffill()
+            df["warning"] = df["warning"].bfill()
+    if 'on' in interp_corrected_data:
+        if set_limit == "limit": # limit consecutive na values
+            df["corrected_data"] = df["corrected_data"].interpolate(method=method, limit = limit_number, limit_direction = direction, limit_area = area)
+        if set_limit == "no limit": # do not limit consecutive na values
+            df["corrected_data"] = df["corrected_data"].interpolate(method=method, limit_direction = direction, limit_area = area)
+        df["corrected_data"] = round(df["corrected_data"], 2)
     return df
 
-def run_basic_forward_fill(df, fill_limit, fill_limit_number, fill_area):
-    if fill_limit == "limit":
-        df["data"].ffill(inplace = True, limit = fill_limit_number, limit_area = fill_area)
-    if fill_limit == "no limit":
-        df["data"].ffill(inplace = True, limit = fill_limit_number,)
+def run_basic_forward_fill(df, fill_limit, fill_limit_number, fill_area, interp_data, interp_corrected_data):
+    if 'on' in interp_data:
+        if fill_limit == "limit":
+            df["data"].ffill(inplace = True, limit = fill_limit_number)
+        if fill_limit == "no limit":
+            df["data"].ffill(inplace = True)
 
-    df["data"] = round(df["data"], 2)
-    if 'estimate' in df.columns:
-        df["estimate"] = df["estimate"].ffill()
+        df["data"] = round(df["data"], 2)
+        if 'estimate' in df.columns:
+            df["estimate"] = df["estimate"].ffill()
 
-    if "warning" in df.columns:
-        df["warning"] = df["warning"].ffill()
-    
+        if "warning" in df.columns:
+            df["warning"] = df["warning"].ffill()
+    if 'on' in interp_corrected_data:
+        if fill_limit == "limit":
+            df["corrected_data"].ffill(inplace = True, limit = fill_limit_number)
+        if fill_limit == "no limit":
+            df["corrected_data"].ffill(inplace = True)
+
+    #df.loc[df["corrected_data"] != -99, "corrected_data"].round(2)
+  
     return df
-def run_basic_backward_fill(df, fill_limit, fill_limit_number, fill_area):
-    if fill_limit == "limit":
-        df["data"].bfill(inplace = True, limit = fill_limit_number)
-    if fill_limit == "no limit":
-        df["data"].bfill(inplace = True)
+def run_basic_backward_fill(df, fill_limit, fill_limit_number, fill_area, interp_data, interp_corrected_data):
+    if 'on' in interp_data:
+        if fill_limit == "limit":
+            df["data"].bfill(inplace = True, limit = fill_limit_number)
+        if fill_limit == "no limit":
+            df["data"].bfill(inplace = True)
 
-    df["data"] = round(df["data"], 2)
-    if 'estimate' in df.columns:
-        df["estimate"] = df["estimate"].bfill()
+        df["data"] = round(df["data"], 2)
+        if 'estimate' in df.columns:
+            df["estimate"] = df["estimate"].bfill()
 
-    if "warning" in df.columns:
-        df["warning"] = df["warning"].bfill()
+        if "warning" in df.columns:
+            df["warning"] = df["warning"].bfill()
+    if 'on' in interp_corrected_data:
+        if fill_limit == "limit":
+            df["correcte_data"].bfill(inplace = True, limit = fill_limit_number)
+        if fill_limit == "no limit":
+            df["corrected_data"].bfill(inplace = True)
+
+    #df.loc[df["corrected_data"] != -99, "corrected_data"].round(2)
+        
 
     return df

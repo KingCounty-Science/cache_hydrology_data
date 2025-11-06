@@ -48,9 +48,7 @@ def fill_timeseries(data, data_interval):
 
 def to_observations(df, query_start_date, query_end_date):
     """adds query start date and query end date to df, thus adding observations to dataframe"""
-    print("df min", df["datetime"].min(), "df max", df["datetime"].max())
     if query_start_date and pd.to_datetime(query_start_date).to_pydatetime() < df['datetime'].min():
-            print("to obs query_start_date ", query_start_date)
             query_start_date =  pd.to_datetime(query_start_date).to_pydatetime()
             new_row = {'datetime': query_start_date}  # Replace 'A' with your desired column
             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
@@ -58,11 +56,8 @@ def to_observations(df, query_start_date, query_end_date):
             df.reset_index(level=None, drop=True, inplace=True)
 
     if query_end_date: #and pd.to_datetime(query_end_date).to_pydatetime() > df['datetime'].max():
-            print(" to obs query_end_date pre convert", query_end_date)
             query_end_date =  pd.to_datetime(query_end_date).to_pydatetime()
-            print("query end date post convert", query_end_date)
-            print("df max", df["datetime"].max())
-            new_row = {'datetime': query_end_date}  # Replace 'A' with your desired column
+            new_row = {'datetime': query_end_date}  # Replace '' with your desired column
             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
             df = df.sort_values(by='datetime', ascending=True) 
             df.reset_index(level=None, drop=True, inplace=True)
@@ -89,11 +84,18 @@ def reformat_data(df):
         df['datetime'] = pd.to_datetime(df['datetime'], format='%Y-%m-%d %H:%M:%S', errors='coerce', infer_datetime_format=True)
         df = df.sort_values(by='datetime', ascending=True).reset_index(drop=True)
     if 'data' in df.columns:
-        df['data'] = df['data'].astype(float, errors="ignore")
-        df['data'] = df['data'].round(2)
+        #df['data'] = df['data'].astype(float, errors="ignore")
+        #df['data'] = df['data'].round(2)
+        df['data'] = pd.to_numeric(df['data'], errors='coerce').round(2)
+    #if 'corrected_data' in df.columns:
+    #    df['corrected_data'] = df['corrected_data'].astype(float, errors="ignore")
+    #    df['corrected_data'] = df['corrected_data'].round(2)
     if 'corrected_data' in df.columns:
-        df['corrected_data'] = df['corrected_data'].astype(float, errors="ignore")
-        df['corrected_data'] = df['corrected_data'].round(2)
+        # Convert to float first
+        df['corrected_data'] = pd.to_numeric(df['corrected_data'], errors='coerce')
+        # Round, but preserve -999 exactly
+        mask = df['corrected_data'] != -99
+        df.loc[mask, 'corrected_data'] = df.loc[mask, 'corrected_data'].round(2)
     if 'observation' in df.columns:
         df['observation'] = df['observation'].astype(float, errors="ignore")
         df['observation'] = df['observation'].replace("", np.nan)
@@ -202,10 +204,61 @@ def parameter_calculation(df, data_level):
         obs = "no observation"
     
     if obs != "no observation":
+        # Calculate offset only from valid data points
+        valid_for_offset = (
+            (df[data_level] != -999) & 
+            (df.get('warning', 0) != 1) &
+            (~df[obs].isna()) &  # Make sure obs data exists
+            (~df[data_level].isna())  # Make sure sensor data exists
+        )
+
+        # Initialize offset series
+        df['offset'] = np.nan
+
+        # Calculate offset only where both obs and sensor data are valid
+        df.loc[valid_for_offset, 'offset'] = (
+            df.loc[valid_for_offset, obs] - df.loc[valid_for_offset, data_level]
+        ).round(2)
+
+        # Interpolate the offset to fill gaps
+        df['offset'] = df['offset'].interpolate(method='linear', axis=0, limit_direction='both')
+
+        # Apply correction only to valid data points
+        valid_for_correction = (
+            (df[data_level] != -999) & 
+            (df.get('warning', 0) != 1) &
+            (~df['offset'].isna())  # Make sure we have an offset to apply
+        )
+
+        # Initialize corrected_data with original sensor data
+        if 'corrected_data' not in df.columns:
+            df['corrected_data'] = df[data_level]
+
+        # Apply correction only where valid
+        df.loc[valid_for_correction, 'corrected_data'] = (
+            df.loc[valid_for_correction, data_level] + 
+            df.loc[valid_for_correction, 'offset']
+        ).round(2)
+
+        # Final offset calculation based on raw data (for metadata)
+        # This should use the original raw data column, not corrected_data
+        df['offset'] = (df[obs] - df["data"]).round(2)  # Assuming "data" is your raw sensor 
+        """# calculate offset based on data level (data/corrected data)
         df['offset'] = df[obs] - df[data_level]
         df['offset'].interpolate( method='linear', inplace=True, axis=0, limit_direction='both')
-        df['corrected_data'] = (df[data_level]+df['offset']).round(2)
-        df['offset'] = (df[obs] - df["data"]).round(2)
+        # this applys offset over the whole df but only corrects when not dry
+        # Assuming you want to exclude -999 (dry/no-data) and warning flags
+        valid_data = (df["corrected_data"] != -999) & (df.get('warning', 0) != 1)
+        
+        # Apply correction only where conditions are met
+        df['corrected_data'] = np.where(
+            valid_data,
+            (df[data_level] + df['offset']).round(2),
+            df["corrected_data"]  # Keep original value where conditions not met
+        )
+        # df['corrected_data'] = (df[data_level]+df['offset']).round(2) calculate corrected data ignoring dry data
+        # re-calculate offset based on raw data for metadata
+        df['offset'] = (df[obs] - df["data"]).round(2)"""
     df = df.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
     
        
@@ -229,14 +282,6 @@ def add_comparison_site(comparison_site, comparison_site_sql_id, comparison_para
 
         else:
             from import_data import sql_import
-            #print("compare site", comparison_site_sql_id, "compare parm", comparison_parameter)
-            #startDate = (pd.to_datetime(startDate).to_pydatetime()) - timedelta(hours=(7))
-            #endDate = (pd.to_datetime(endDate).to_pydatetime()) - timedelta(hours=(7))
-            #if comparison_parameter == "stage": # if you are trying to look at stage data you still want to import discharge
-                #df_comp = sql_import("discharge", comparison_site_sql_id, startDate, endDate) # fx converts to PST and out of PST    
-            #else:
-                #df_comp = sql_import(comparison_parameter, comparison_site_sql_id, startDate, endDate) # fx converts to PST and out of PST  
-            print("parameter", comparison_parameter)
             if comparison_parameter == "stage":
                 df_comp = sql_import("discharge", comparison_site_sql_id, startDate, endDate) # fx converts to PST and out of PST    
                 df_comp = df_comp[['datetime', "corrected_data"]]
@@ -249,8 +294,6 @@ def add_comparison_site(comparison_site, comparison_site_sql_id, comparison_para
 
             elif comparison_parameter == "rain" or comparison_parameter == "Precip":
                 df_comp = sql_import(comparison_parameter, comparison_site_sql_id, startDate, endDate) # fx converts to PST and out of PST 
-                print("rain")
-                
                 df_comp = df_comp[['datetime', "corrected_data"]]
                 #df_comp['datetime'] = pd.to_datetime(df_comp['datetime'], format='%Y-%m-%d %H:%M:%S', errors='coerce', infer_datetime_format=True)
                 df_comp['corrected_data'] = df_comp['corrected_data'].astype(float, errors="ignore")
@@ -275,10 +318,7 @@ def add_comparison_site(comparison_site, comparison_site_sql_id, comparison_para
                 #df[f'water_year_mean7d_{parameter}_rolling_average'] = df.groupby(["watershed", "water_year"])[f"{parameter}_daily_mean"].transform(lambda x: x.rolling(window = 7, min_periods = 7, center = True, closed = 'both').mean()).round(2)
                 #df_comp['mean'] = df_comp['corrected_data'].transform(lambda x: x.rolling(window = 754, min_periods = 1, center = True, closed = 'both').mean()).round(2)
                 df_comp['mean'] = df_comp[['rolling_bidaily','rolling_weekly', 'rolling_biweekly', 'rolling_monthly']].mean(axis = 1)
-                #print("df comp initial")
-                #print(df_comp)
-                #print(df_comp)
-                #df_comp["mean"] = round(df_comp["mean"], 2)
+        
                 df_comp = df_comp[["datetime", "mean"]]
 
                 df_comp.rename(columns={"mean": f"comparison {comparison_site} {comparison_parameter}"}, inplace=True)
@@ -343,3 +383,43 @@ fill_timeseries(data)
 print(f"delta {fill_timeseries.delta}")
 print(f"interval {fill_timeseries.interval}")
 '''
+
+### dry data
+# sets corrected data to -99 and warning to 1
+def set_dry_indicator_function(data, start_dry_indicator_range, end_dry_indicator_range):
+    try:
+        # Combine date and time
+        start_dry_indicator_range = pd.to_datetime(start_dry_indicator_range)
+        end_dry_indicator_range = pd.to_datetime(end_dry_indicator_range)
+                        
+        if start_dry_indicator_range >= end_dry_indicator_range:
+            return data
+                        
+        mask = (data['datetime'] >= start_dry_indicator_range) & (data['datetime'] <= end_dry_indicator_range)
+        affected_rows = mask.sum()
+                        
+        if affected_rows == 0:
+            return data
+                        
+        # Apply dry warning
+        data.loc[mask, 'warning'] = 1
+        data.loc[mask, 'corrected_data'] = -99
+        return data
+    except Exception as e:
+        return data
+                        
+def apply_dry_threshold_raw_function(data, dry_threshold_raw_input):
+    data.loc[data["data"] <= dry_threshold_raw_input, "corrected_data"] = -99
+    data.loc[data["data"] <= dry_threshold_raw_input, "warning"] = 1
+    return data
+
+def apply_dry_threshold_corrected_data_function(data, dry_threshold_corrected_data_input):
+    data.loc[data["corrected_data"] <= dry_threshold_corrected_data_input, "corrected_data"] = -99
+    data.loc[data["corrected_data"] <= dry_threshold_corrected_data_input, "warning"] = 1
+    return data
+
+def clear_dry_indicator_function(data, start_dry_indicator_range, end_dry_indicator_range):
+    mask = (data['datetime'] >= start_dry_indicator_range) & (data['datetime'] <= end_dry_indicator_range)
+    data.loc[mask, 'warning'] = 0
+    data.loc[mask, 'corrected_data'] = np.nan  # Clear corrected_data
+    return data

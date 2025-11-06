@@ -458,8 +458,7 @@ def calculate_daily_values(start_date, end_date, parameter, site_sql_id):
                                                 f"WHERE G_ID = {site_sql_id} AND CAST({config[parameter]['datetime']} AS DATE) BETWEEN '{start_date}' AND '{end_date}' "
                                                 f"GROUP BY CAST({config[parameter]['datetime']} AS DATE) ", conn)
                 daily_data[f"{config[parameter]['daily_auto_timestamp']}"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-                print("daily data")
-                print(daily_data)
+
         # arrange columns in desired order
         with sql_engine.begin() as conn:
             desired_order = pd.read_sql_query(f"SELECT TOP 1 * "
@@ -469,8 +468,10 @@ def calculate_daily_values(start_date, end_date, parameter, site_sql_id):
         desired_order = desired_order.columns.tolist()
         existing_columns = [col for col in desired_order if col in daily_data.columns]         # Filter out columns that exist in the DataFrame
         daily_data = daily_data[existing_columns]
-
+    
+        daily_data = daily_data.replace({np.nan: None}) # replace nan with None
         for index, row in daily_data.iterrows():
+
             try:
                 daily_data.loc[daily_data.index == index].to_sql(config[parameter]['daily_table'], sql_engine, method=None, if_exists='append', index=False)
             except IntegrityError:
@@ -501,13 +502,9 @@ def calculate_daily_values(start_date, end_date, parameter, site_sql_id):
 
 
 def full_upload(df, parameter, site_sql_id, utc_offset):
-    print("full upload")
     clean_file(df, parameter, site_sql_id, utc_offset)
-    print("cleaned")
     delete_data(df, parameter, site_sql_id)
-    print("delete")
     upload_data(df, parameter, site_sql_id, utc_offset)
-    print("uplad")
     df[config[parameter]['datetime']] = pd.to_datetime(df[config[parameter]['datetime']], errors='coerce')
 
     # Get max date, strip time, add 2 days
@@ -515,10 +512,8 @@ def full_upload(df, parameter, site_sql_id, utc_offset):
     end_date = df[config[parameter]['datetime']].max().normalize() + pd.Timedelta(days=2)
     calculate_daily_values(start_date, end_date, parameter, site_sql_id)
    
-    print("daily")
 
 def check_if_rating_exists(site_sql_id, rating):
-    print("rating check")
     """sql_alchemy_connection = urllib.parse.quote_plus('DRIVER={'+driver+'}; SERVER='+server+'; DATABASE='+database+'; Trusted_Connection='+trusted_connection+';')
     sql_engine = create_engine("mssql+pyodbc:///?odbc_connect=%s" % sql_alchemy_connection)
     with sql_engine.connect() as conn:

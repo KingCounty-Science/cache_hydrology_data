@@ -7,12 +7,13 @@ updated Friday Feb 14 2025
 """
 import base64
 import io
+import dash_mantine_components as dmc
 import json
 import pyodbc
 import configparser
 import dash
 from dash import callback_context
-from dash import html
+from dash import Dash, html, Input, Output, callback, ctx
 from dash.dependencies import Input, Output, State
 from dash import dcc
 #from dash import html
@@ -121,8 +122,28 @@ app.layout = html.Div([
     # dcc.Location(id='url', refresh=False),
     # Select a Site
     # Site = site name site_sql_id is site number
-   
-    dcc.Dropdown(id='site_selector', options=[{'label': i, 'value': i} for i in site_list], style={'display': 'block'}), 
+    # select site, paramter and data source
+    html.Div([
+    html.Div([
+        html.Label('Select Site and Parameter', style={'marginBottom': '5px', 'fontWeight': 'bold'}),
+        dcc.Dropdown(
+            id='site_selector',
+            options=[{'label': i, 'value': i} for i in site_list],
+            style={'width': '100%'}
+        )
+    ], style={'width': '60%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'}),
+    
+    html.Div(id='Select_Data_Source_Output', 
+             style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'}),
+    
+    html.Div([
+        html.Label('Select File Import or Database Query', style={'marginBottom': '5px', 'fontWeight': 'bold'}),
+        daq.ToggleSwitch(id='Select_Data_Source', value=False)
+    ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'})
+    
+], style={'backgroundColor': '#ccccff', 'border': '2px solid #5e006a', 'padding': '10px', 'display': 'flex', 'alignItems': 'flex-start'}),
+    
+
     html.Div(id='site', style={'display': 'none'}),
     html.Div(id='site_sql_id', style={'display': 'none'}),
     html.Div(id='parameter', style={'display': 'none'}),
@@ -130,22 +151,59 @@ app.layout = html.Div([
     # Select a Parameter - get options from callback
     #html.Div(dcc.Dropdown(id='Parameter', value='0'), style={'display': 'block'}),
    
-    html.Div(daq.ToggleSwitch(id='Select_Data_Source', value=False),),   # toggle between SQL query and file upload
-    html.Div(id='Select_Data_Source_Output'),
+    
     html.P(id="data_label", children=["data column axis"]), 
     dcc.RadioItems(id='data_axis', options=['data', 'corrected_data'], value='data', inline=True),
     #html.Div(dcc.RangeSlider(0, 20, 1, value=[5, 15], id='select_datetime_by_obs'), id = "select_datetime_by_obs_dev", style={'display': 'block'}),
     #html.Div(dcc.Dropdown(id='select_datetime_by_obs_a', options=[""], value='0'), dcc.Dropdown(id='select_datetime_by_obs_b', options=[""], value='0'), id = "select_datetime_by_obs_dev", style={'display': 'block'}),  
+   
+    # date time selector
+    # date time selector
+# date time selector
+html.Div([
+    # Left section - Date range inputs (35%)
     html.Div([
-    html.Label("select date range"),
-    html.Div(dash_datetimepicker.DashDatetimepicker(id='select_range', startDate='', endDate=''), style={'display': 'flex', 'flex-direction': 'row'}),
-    html.Label(" or select first observation  "),
-    html.Div(dcc.Dropdown(id='select_datetime_by_obs_a', options=[{"label": "", "value": ""}], value=''), style={'width': '25%', 'box-sizing': 'border-box', 'padding-left': '10px', 'display': 'inline-block'}),
-    html.Label("  and select second observation  "),
-    html.Div(dcc.Dropdown(id='select_datetime_by_obs_b', options=[{"label": "", "value": ""}], value=''), style={'width': '25%', 'box-sizing': 'border-box', 'padding-left': '10px', 'display': 'inline-block'}),
+        html.Label("Select date range", style={'margin-bottom': '15px', 'font-weight': 'bold', 'text-align': 'center', 'display': 'block'}),
+        html.Div([
+            html.Div([
+                html.Label('Start Datetime:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px'}),
+                dbc.Input(id='startDate', type='datetime-local', style={'width': '100%', 'font-size': '14px', 'padding': '6px'})
+            ], style={'flex': '1'}),
+            html.Div([
+                html.Label('End Datetime:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px'}),
+                dbc.Input(id='endDate', type='datetime-local', style={'width': '100%', 'font-size': '14px', 'padding': '6px'})
+            ], style={'flex': '1'})
+        ], style={'display': 'flex', 'gap': '10px'})
+    ], style={'flex': '0 0 35%', 'padding-right': '20px', 'background-color': '#eed8a4'}),
+    
+    # Right section - Observation dropdowns (65%)
+    html.Div([
+        html.Label("Select by observation", style={'margin-bottom': '15px', 'font-weight': 'bold', 'text-align': 'center', 'display': 'block'}),
+        html.Div([
+            html.Div([
+                html.Label('First observation:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px'}),
+                dcc.Dropdown(id='select_datetime_by_obs_a', options=[{"label": "", "value": ""}], value='')
+            ], style={'flex': '1'}),
+            html.Div([
+                html.Label('Last observation:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px'}),
+                dcc.Dropdown(id='select_datetime_by_obs_b', options=[{"label": "", "value": ""}], value='')
+            ], style={'flex': '1'})
+        ], style={'display': 'flex', 'gap': '10px'})
+    ], style={'flex': '0 0 60%', 'padding-left': '20px', 'background-color': '#eed8a4'})
+    
+], id='select_datetime_by_obs_dev', 
+   style={
+       'display': 'flex',
+       'border': '2px solid #e3a66a', 
+       'border-radius': '5px', 
+       'padding': '15px',
+       'margin': '10px 0',
+       'align-items': 'flex-start',
+       'backgroundColor': '#eed8a4'
+   }),
+    
     dcc.Store(id='query_start_date'),  
     dcc.Store(id='query_end_date'),    
-        ], id='select_datetime_by_obs_dev', style={'display': 'none'}),
     dcc.Store(id="statistics"),
     
     
@@ -155,49 +213,107 @@ app.layout = html.Div([
   
                       
 
-   html.Div([
-    # RadioItems with border
-    html.Div(
-        dcc.RadioItems(
-            id='Barometer_Button',
-            options=[
-                {'label': 'Perform Barometric Correction', 'value': 'Baro'}, {'label': 'Do Not Perform Barometric Correction', 'value': 'No_Baro'}], value='Baro'),
-            style={'display': 'block', 'backgroundColor': 'skyblue',}),
-            # style={'display': 'block','border': '2px solid #ccc','borderRadius': '5px','padding': '10px','marginRight': '10px','flex': '1'}
-
-    # Dropdown and Button in a horizontal row
-    html.Div([
-        dcc.Dropdown(id='available_barometers', options=[{'label': i, 'value': i} for i in barometer_list], style={'display': 'none' }),
-        html.Button('Delete Association', id='Delete_Association', n_clicks=0, style={'display': 'none', 'marginLeft': '10px'})],
-    style={'display': 'flex', 'flex': '2'})],
-
-style={'display': 'flex', 'width': '100%', 'gap': '10px'}),
 
 
     html.Div(id='New_Callback'),
+    ### File structure
     # Import file structures
-    html.Div(dcc.RadioItems(id='File_Structure',
-        options=[
-            {'label': 'onset_U20', 'value': 'onset_U20'},
-            {'label': 'onset_U24', 'value': 'onset_U24'},
-            {'label': 'aqua4plus_ct2x', 'value': 'aqua4plus_ct2x'},
-            {'label': 'csv', 'value': 'csv'}], value='onset_U20', labelStyle={'display': 'inline-block', 'margin-right': '15px'})),
-    # CSV Trimming
+    # Wrap the entire structure in a div with an ID
+html.Div([
     html.Div([
-        html.Div(daq.NumericInput(id='HEADER_ROWS', label='HEADER ROWS', labelPosition='top', value=1,), style={'width': '10%', 'display': 'inline-block'}),
-        html.Div(daq.NumericInput(id='FOOTER_ROWS', label='FOOTER ROWS', labelPosition='top',value=0,), style={'width': '10%', 'display': 'inline-block'}),
-        html.Div(daq.NumericInput(id='TIMESTAMP_COLUMN',label='TIMESTAMP_COLUMN', labelPosition='top', value=0,), style={'width': '10%', 'display': 'inline-block'}),
-        html.Div(daq.NumericInput(id= 'DATA_COLUMN', label='DATA_COLUMN', labelPosition='top',value=1,), style={'width': '10%', 'display': 'inline-block'}),
-    ]),
-
-    dcc.Upload(
-        id='datatable-upload',
-        children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
-        style={
-            'width': '100%', 'height': '60px', 'lineHeight': '60px',
-            'borderWidth': '1px', 'borderStyle': 'dashed',
-            'borderRadius': '5px', 'textAlign': 'center', 'margin': '10px'
+        # Left side: Radio items and numeric inputs (30%)
+        html.Div([
+            html.Label('Select File Structure', style={'marginBottom': '10px', 'fontWeight': 'bold'}),
+            dcc.RadioItems(
+                id='File_Structure',
+                options=[
+                    {'label': 'onset_U20', 'value': 'onset_U20'},
+                    {'label': 'onset_U24', 'value': 'onset_U24'},
+                    {'label': 'aqua4plus_ct2x', 'value': 'aqua4plus_ct2x'},
+                    {'label': 'csv', 'value': 'csv'}
+                ], 
+                value='onset_U20', 
+                labelStyle={'display': 'inline-block', 'margin-right': '15px'}
+            ),
+            html.Div([
+                html.Div(daq.NumericInput(id='HEADER_ROWS', label='HEADER ROWS', labelPosition='top', value=1), 
+                         style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
+                html.Div(daq.NumericInput(id='FOOTER_ROWS', label='FOOTER ROWS', labelPosition='top', value=0), 
+                         style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
+                html.Div(daq.NumericInput(id='TIMESTAMP_COLUMN', label='TIMESTAMP_COLUMN', labelPosition='top', value=0), 
+                         style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
+                html.Div(daq.NumericInput(id='DATA_COLUMN', label='DATA_COLUMN', labelPosition='top', value=1), 
+                         style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
+            ], style={'marginTop': '10px'})
+        ], style={
+            'width': '30%', 
+            'display': 'inline-block', 
+            'verticalAlign': 'top', 
+            'padding': '15px',
+            'border': '2px solid #cee5d0',
+            'backgroundColor': "#B2E6D1"
         }),
+        
+        # Middle: Upload component (15%)
+        html.Div([
+            dcc.Upload(
+                id='datatable-upload',
+                children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
+                style={
+                    'width': '100%', 
+                    'height': '60px', 
+                    'lineHeight': '60px',
+                    'borderWidth': '1px', 
+                    'borderStyle': 'dashed',
+                    'borderRadius': '5px', 
+                    'textAlign': 'center'
+                })
+        ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
+        
+        # Barometric correction radio buttons (20%)
+        html.Div(
+            dcc.RadioItems(
+                id='Barometer_Button',
+                options=[
+                    {'label': 'Barometric Correction', 'value': 'Baro'}, 
+                    {'label': 'No Correction', 'value': 'No_Baro'}
+                ], 
+                value='Baro'),
+            style={
+                'width': '20%',
+                'display': 'inline-block', 
+                'verticalAlign': 'top',
+                'backgroundColor': 'skyblue', 
+                'padding': '15px'
+            }),
+
+        # Dropdown and Button side by side (20% + remaining space)
+       html.Div([
+    html.Label('Select a Barometer', style={'marginBottom': '5px', 'fontWeight': 'bold', 'display': 'block'}),
+    dcc.Dropdown(
+        id='available_barometers', 
+        options=[{'label': i, 'value': i} for i in barometer_list], 
+        style={'display': 'none', 'width': '100%'}
+    )
+], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
+
+# Button (10%)
+html.Div([
+    html.Button('Delete Association', id='Delete_Association', n_clicks=0, 
+               style={'display': 'none', 'padding': '10px 20px', 'fontSize': '14px'})
+], style={'width': '10%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
+        
+    ], style={
+        'display': 'flex', 
+        'alignItems': 'flex-start', 
+        'gap': '10px',
+        'border': '2px solid #439473',
+        'padding': '10px',
+        'backgroundColor': '#cee5d0'
+    })
+], id='File_Structure_Container'),
+
+
     # date time picker not native to dash see https://community.plotly.com/t/dash-timepicker/6541/10
     
    
@@ -325,7 +441,7 @@ style={'display': 'flex', 'width': '100%', 'gap': '10px'}),
 
                         html.Div(id="data_interval", children="data_interval")]),
                          
-                                dcc.RangeSlider(id='interval', min=0, max=4, step=None, marks={0: '1 min', 1: '5 min', 2: '15 min', 3: 'hourly', 4: 'daily'}, value=[2]),
+                                dcc.RangeSlider(id='interval', min=0, max=5, step=None, marks={0: '1 min', 1: '5 min', 2: '15 min', 3: '30 min', 4: 'hourly', 5: 'daily'}, value=[2]),
                                 html.Button('resample', id='resample_button'),                
                        
                         html.Div([
@@ -357,13 +473,108 @@ style={'display': 'flex', 'width': '100%', 'gap': '10px'}),
 
 
                         ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+
+                         html.Div([
+                            html.Label('run interpolation on data column', style={'margin-right': '10px'}),
+                            dcc.Checklist(
+                                id='interp-data', 
+                                options=[{'label': 'Interpolate data', 'value': 'on'}], 
+                                value=[],  # Empty = off, ['on'] = on
+                                style={'display': 'inline-block'}
+                                ),
+                           
+                            html.Label('run interpolation on corrected data column', style={'margin-right': '10px'}),
+                            dcc.Checklist(
+                                id='interp-corrected-data', 
+                                options=[{'label': 'Interpolate Corrected Data', 'value': 'on'}], 
+                                value=[],  # Empty = off, ['on'] = on
+                                style={'display': 'inline-block'}
+                                )
+                            ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+
+                        
                        
                         html.Div([html.Label("Interpolation Functions"),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center', 'margin-top': '20px'}),
                         
                         html.Div([
-                            html.Label("Show Dry Indicator"),
-                            daq.ToggleSwitch(id='dry_indicator_button', value=False),
-                            html.Button('set dry warning', id='set_dry_indicator_warning_button'), 
+                            html.Div([
+                                html.Label("Apply dry/non-detect indicator"),
+                                html.Div([
+                                    # Left column - text inputs
+                                    html.Div([
+                                        html.Div([
+                                            html.Label("start dry indicator range"),
+                                            dcc.Input(
+                                                id='start-dry-indicator-range',
+                                                type='text',
+                                                placeholder='YYYY-MM-DD HH:MM:SS',
+                                                value='2024-01-01 00:00:00',
+                                                style={'width': '200px'}
+                                            )
+                                        ], style={'margin': '10px'}),
+                                        
+                                        html.Div([
+                                            html.Label("end dry indicator range"),
+                                            dcc.Input(
+                                                id='end-dry-indicator-range',
+                                                type='text',
+                                                placeholder='YYYY-MM-DD HH:MM:SS',
+                                                value='2024-01-01 23:59:59',
+                                                style={'width': '200px'}
+                                            )
+                                        ], style={'margin': '10px'}),
+                                    ], style={'flex': '1', 'padding-right': '20px'}),
+                                    
+                                    # Right column - buttons
+                                    html.Div([
+                                        html.Button('set dry indicator range', id='set-dry-indicator', 
+                                                style={'margin': '5px', 'display': 'block'}),
+                                        html.Button('clear all dry indicators', id='clear-dry-indicator',
+                                                style={'margin': '5px', 'display': 'block'}),
+                                    ], style={'flex': '1', 'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center'}),
+                                    
+                                ], style={'display': 'flex', 'align-items': 'flex-start'}),
+                            ], style={
+                                'border': '1px solid #ccc',
+                                'padding': '15px',
+                                'margin': '10px',
+                                'border-radius': '4px'
+                            }),
+                            html.Div([
+                                    html.Label("apply dry threshold to raw data"),
+                                    dcc.Input(
+                                        id='dry-threshold-raw-input',
+                                        type='number',
+                                        step='any',
+                                        value=0,
+                                        style={'width': '200px'}
+                                    ),
+                                    html.Button('apply dry threshold raw', id='apply-dry-threshold-raw'),
+                                ], style={
+                                    'margin': '10px',
+                                    'border': '1px solid #ccc',  # thin border
+                                    'padding': '10px',           # add some padding inside the border
+                                    'border-radius': '4px'       # optional: rounded corners
+                                }),
+                            html.Div([
+                                    html.Label("apply dry threshold to corrected data"),
+                                    dcc.Input(
+                                        id='dry-threshold-corrected-data-input',
+                                        type='number',
+                                        step='any',
+                                        value=0,
+                                        style={'width': '200px'}
+                                    ),
+                                    html.Button('apply dry threshold corrected data', id='apply-dry-threshold-corrected-data'),  
+                                ], style={
+                                    'margin': '10px',
+                                    'border': '1px solid #ccc',  # thin border
+                                    'padding': '10px',           # add some padding inside the border
+                                    'border-radius': '4px'       # optional: rounded corners
+                                }),
+                            
+                           
+                            
                                 ], style={'display': 'flex'}),
                         
                         dbc.ModalFooter(dbc.Button("close", id="close-modal-button", className="ml-auto")),], id="modal", size="xl",),
@@ -411,10 +622,23 @@ style={'display': 'flex', 'width': '100%', 'gap': '10px'}),
 
         html.Button('export_data', id='export_data_button', n_clicks=0),
         html.Div(id='export_data_children', style={'width': '5%', 'display': 'inline-block'}),
+        html.Div([
+        html.Label('session toggle (when true upload by session)', style={'margin-right': '10px'}),
+        dcc.Checklist(
+            id='session-toggle',
+            options=[{'label': '', 'value': 'on'}],
+            value=['on'],  # Set to true by default
+            style={'display': 'inline-block'}
+        )
+    ], style={'display': 'inline-block', 'margin-left': '20px'}),
+
+        
         
     ],style={'display': 'flex', 'flex-direction': 'row'}),
 
 ])
+
+
 
 
 # Select file source
@@ -452,7 +676,7 @@ def display_upload(Select_Data_Source):
 
 # display file structure
 @app.callback(
-    Output('File_Structure', component_property='style'),
+    Output('File_Structure_Container', component_property='style'),
     Input('Select_Data_Source', 'value'))
 def display_file_structure(Select_Data_Source):
     if Select_Data_Source is False:
@@ -564,7 +788,7 @@ def toggle_modal(n1, n2, is_open):
     Output(component_id='data_interval', component_property='children'),
     Input(component_id='interval', component_property='value'),)
 def data_interval(interval):
-    labels = {0: '1', 1: '5', 2: '15', 3: '60', 4: '1440'}
+    labels = {0: '1', 1: '5', 2: '15', 3: '30', 4: '60', 5: '1440'}
     data_interval = labels.get(interval[0], "Unknown")
     return data_interval
 
@@ -594,11 +818,9 @@ def get_sql_number_from_gid(site_selector_value):
         site_sql_id = get_site_sql_id(site)
         return site, site_sql_id, parameter
     else:
-     
         return dash.no_update
 
 
-# Barometer Search
 
 # companion parameters
 @app.callback(
@@ -616,28 +838,14 @@ def update_companion_parameters(comparison_sites, start_date, end_date, primer_h
             end_date =  (pd.to_datetime(end_date).to_pydatetime()) + timedelta(hours=primer_hours)
             # convert string to list
             #comparison_sites = comparison_sites.split()
-            comparison_data = pd.DataFrame(columns=["datetime", "psite", "parameter", "corrected_data"])
+            comparison_data = pd.DataFrame(columns=["datetime", "site", "parameter", "corrected_data"])
             for site_item in comparison_sites:
-                # usgs sites
-                if site_item.startswith("USGS"): 
-
-                    #if site_name.startswith("USGS"): # would have to change this if non usgs external sites are added...
-                    #parameters = pd.read_csv("external_comaprison_sites.csv", skipinitialspace=True)
-                    #parameters = parameters["parameter"].loc[parameters["site"] == site_name].item()
-                    #if site_item.startswith("USGS "):
-                    #    trimmed = site_item[len("USGS "):]
-                    #else:
-                    #    trimmed = site_item
-
-                        # 2. Split off the last word as parameter, rest as site
+                if site_item.startswith("USGS"): # usgs sites
+                    # Split off the last word as parameter, rest as site
                     usgs_site, usgs_parameter = site_item.rsplit(" ", 1)
                     usgs_site_codes = pd.read_csv("external_comaprison_sites.csv", skipinitialspace=True)
                     usgs_site_code = usgs_site_codes.loc[usgs_site_codes["site"] == usgs_site, "site_sql_id"].item()
-
-                    print("usgs ", site_item, "split: ", usgs_site, "parm: ", usgs_parameter)  
-                    print("usgs site code ", usgs_site_code)
                     df = usgs_data_import(usgs_site, usgs_parameter, start_date, end_date)
-                    print(df)
                 else: # kc sites
                     site, parameter = site_item.split(" ", 1)
                     site_sql_id = get_site_sql_id(site)
@@ -649,11 +857,12 @@ def update_companion_parameters(comparison_sites, start_date, end_date, primer_h
                         df_q["parameter"] = "discharge"
                         df_q = df_q[["site", "datetime", "parameter", "discharge"]]
                         df_q.rename(columns={'discharge': 'corrected_data'}, inplace=True)
-
-                        df["parameter"] = "stage"
-                        df = df[["site", "datetime", "parameter", "corrected_data"]]
+                        ## add stage
+                        #df["parameter"] = "stage"
+                        #df = df[["site", "datetime", "parameter", "corrected_data"]]
                         
-                        df = pd.concat([df, df_q])
+                        #df = pd.concat([df, df_q])
+                        df = df_q
                     else:   
                         df["site"] = site
                         df["parameter"] = parameter
@@ -661,10 +870,6 @@ def update_companion_parameters(comparison_sites, start_date, end_date, primer_h
                     existing_columns = [col for col in desired_order if col in df.columns] 
                             # Filter out columns that exist in the DataFrame   
                     df = df[existing_columns].copy()
-                        
-
-
-
                 comparison_data = pd.concat([comparison_data, df], ignore_index=True)
             
             return comparison_data.to_json(orient="split")
@@ -673,6 +878,7 @@ def update_companion_parameters(comparison_sites, start_date, end_date, primer_h
     
 
 # existing_data
+### im not sure what this does
 @app.callback(
     #Output(component_id='comparison_parameter', component_property='options'),
     Output(component_id='comparison_sites', component_property='value'),
@@ -685,7 +891,9 @@ def add_existing_data(site_selector_value, start_date, end_date):
     #'comparison_sites' when a site is selected/changed this clears comparison sites and adds the current site to the comparison for comparison
  
     if site_selector_value:
-            return [site_selector_value] # sets the site to be a comparison site to see existing data
+            #return None # sets the site to be a comparison site to see existing data
+            return None
+            # return None # returns nothing
     else:
          return dash.no_update
 
@@ -751,177 +959,156 @@ def all_observations(site, site_sql_id, parameter):
                         
                         observations.rename(columns={"parameter_observation": "q_observation"}, inplace=True)
             # at the moment the date range is updated based on observations so you dont want to trigger observations to update if its changed
-
-                    
             return  observations.to_json(orient="split")
         except:
             return pd.DataFrame().to_json(orient="split")
     else:
         #return pd.DataFrame().to_json(orient="split")
         return dash.no_update
-           
+    
+@app.callback(
+    Output('statistics', 'data'),
+    Input("site_sql_id", "children"),
+    Input('parameter', 'children'),
+)  
+def get_statistics(site_sql_id, parameter):     
+    if not site_sql_id or not parameter:
+        return None
+    
+    statistics = sql_statistics(parameter, site_sql_id)
+    stats_df = pd.DataFrame({
+        'datetime': [
+            statistics["first_datetime"], 
+            statistics["last_datetime"], 
+            datetime.now().replace(second=0, microsecond=0)
+        ],
+        'observation_number': [
+            'first record', 
+            'last record', 
+            "today (just todays date)"
+        ]
+    })
+    stats_df['datetime'] = pd.to_datetime(stats_df['datetime']).dt.tz_localize(None)
+
+    # Return as JSON string in the correct format
+    return stats_df.to_json(orient='split', date_format='iso')
+
+
 ### Date range
 @app.callback(
-    Output("select_datetime_by_obs_dev", "style"),
-    Output('select_datetime_by_obs_a', 'options'),  # obs a
-    Output('select_datetime_by_obs_b', 'options'),  # obs b
+    Output('select_datetime_by_obs_a', 'options'),
+    Output('select_datetime_by_obs_b', 'options'),
     Output('query_start_date', 'data'),
     Output('query_end_date', 'data'),
-    Output('statistics', 'data'),
     Input("observations", "data"),
-    Input('select_range', 'startDate'),  # startDate is a dash parameter
-    Input('select_range', 'endDate'),
-    Input('site', 'children'), # may not neven need a site trigger but dont need site, siteid, and paramter
-    State("site_sql_id", "children"),
-    State('parameter', 'children'),
-    Input('Select_Data_Source', 'value'),
-    Input('select_datetime_by_obs_a', 'value'),  # obs a
-    Input('select_datetime_by_obs_b', 'value'),  # obs b
-    Input('data_interval', 'children'),
-    #Input('import_data', 'data'),
-    )
-
-
-
-def daterange(observations, startDate, endDate, site, site_sql_id, parameter, data_source, obs_a, obs_b, data_interval):
-    """ignores date range for now"""
-    query_start_date = ""
-    query_end_date = ""
-    # should just have 1 callback that querys obs for everything
-    #if data_source == True and site != '0' and parameter != '0' :
-    if site and parameter:
-        obs = pd.read_json(observations, orient="split")
-
-        statistics =  sql_statistics(parameter, site_sql_id)
-     
-        stats_df = pd.DataFrame({'datetime': [statistics["first_datetime"], statistics["last_datetime"], datetime.now().replace(second=0, microsecond=0)],'observation_number': ['first record', 'last record', "today (just todays date)"]})
-       
-        #obs = obs.merge(stats_df, on = ["datetime", "observation_number"], how = "outer")
-        obs = pd.concat([obs, stats_df])
-        obs = obs.sort_values(by='datetime', ascending=False) 
-        
-        #obs_a_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}" for _, row in obs.iterrows()]
-        
-        #obs_a_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M') if pd.notna(row['datetime']) else ''} observation: {row['observation_number']}" for _, row in obs.iterrows()] # returns blank for bad data
-        # Step 1: Your original observation options (filtered for valid datetimes)
-        obs_a_options = [
-            f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}"
-            for _, row in obs.iterrows()
-            if pd.notna(row['datetime'])
-        ]
-
-        # Step 2: Extract unique years from valid datetimes
-        obs_years = obs['datetime'].dropna().dt.year.unique().tolist()
-
-        # Step 3: Ensure current year is included
-        current_year = datetime.now().year
-        if current_year not in obs_years:
-            obs_years.append(current_year)
-
-        # Step 4: Add "year: XXXX" options
-        year_options = [f"water year: {year}" for year in sorted(obs_years)]
-
-        # Step 5: Combine both lists
-        obs_a_options = year_options + obs_a_options
-        if obs_a and str(obs_a).lower().startswith("water year"):
-            year_str = str(obs_a).lower().replace("water year:", "").strip()
-            # Optionally convert to int if needed:
-            year = int(year_str)
-            query_start_date = datetime(year-1, 10, 1, 0, 0).strftime('%Y-%m-%d %H:%M')
-        elif obs_a != "": # filter observations so you only see observations greater then first selection
-            obs_a = obs_a.split("date: ")[1].split(" observation:")[0].strip()
-            obs_a = datetime.strptime(obs_a, '%Y-%m-%d %H:%M')
-            obs = obs.loc[obs["datetime"] > obs_a]
-
-            # find closest value in sql
-            query_start_date = pd.to_datetime(obs_a).to_pydatetime()
-            from import_data import sql_get_closest_datetime
-            # get min value
-            try:
-                result_a, result_b, result_c = sql_get_closest_datetime(parameter, site_sql_id, query_start_date)
-            except:
-                 result_a, result_b, result_c = query_start_date, query_start_date, query_start_date
-            print(f"obs a options result a {result_a} result b {result_b} result c {result_c}")
-            if result_b != result_c: # obs is before the end of the datafrmae
-                 interval = abs(result_c - result_b)
-            #if query_start_date == result_a:
-            #    query_start_date = result_a
-            #else:
-            #    query_start_date = min(result_a, result_b)
-            query_start_date = result_a
-            print("query start date", query_start_date)
-        #elif obs_a == "" and data_source == 'File Import' and not pd.read_json(import_data, orient="split").empty: # if your are importind data you can use
-        #        import_data = pd.read_json(import_data, orient="split").empty
-        #        query_start_date = import_data['datetime'].min()
-        #        print("no obs import data obs a", query_start_date)
-        #obs_b_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}" for _, row in obs.iterrows()]
-        #obs_b_options = [f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M') if pd.notna(row['datetime']) else ''} observation: {row['observation_number']}" for _, row in obs.iterrows()] # returns blank for bad data
-        # Step 1: Clean per-observation options
-        obs_b_options = [
-            f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}"
-            for _, row in obs.iterrows()
-            if pd.notna(row['datetime'])
-        ]
-
-        # Step 2: Extract unique years from valid datetimes
-        obs_years = obs['datetime'].dropna().dt.year.unique().tolist()
-
-        # Step 3: Ensure current year is included
-        current_year = datetime.now().year
-        if current_year not in obs_years:
-            obs_years.append(current_year)
-
-        # Step 4: Add "year: XXXX" options
-        year_options = [f"water year: {year}" for year in sorted(obs_years)]
-
-        # Step 5: Combine both lists
-        obs_b_options = year_options + obs_b_options
-        if obs_b and str(obs_b).lower().startswith("water year"):
-            year_str = str(obs_b).lower().replace("water year:", "").strip()
-            # Optionally convert to int if needed:
-            year = int(year_str)
-            query_end_date = datetime(year, 10, 1, 0, 0).strftime('%Y-%m-%d %H:%M')
-             
-        elif obs_b != "":
-            obs_b = obs_b.split("date: ")[1].split(" observation:")[0].strip()
-            obs_b = datetime.strptime(obs_b, '%Y-%m-%d %H:%M')
-            query_end_date = pd.to_datetime(obs_b).to_pydatetime()
-            try:
-                result_a, result_b, result_c = sql_get_closest_datetime(parameter, site_sql_id, query_end_date)
-            except:
-                result_a, result_b, result_c = query_end_date, query_end_date, query_end_date
-
-            print(f"obs b options result a {result_a} result b {result_b} result c {result_c}")
-            #print(f"option b maths c-b {abs(result_c - result_b)} a-b {abs(result_a - result_b)}")
-            
-            # result a is closest, b is below, c is above
-            if result_a == result_b and result_b == result_c: # last db log is before this peroid, use query end date
-                query_end_date = pd.Timestamp(query_end_date).floor(f'{data_interval}T') + pd.Timedelta(f"{data_interval}T")
-                print("first option query end date", query_end_date)
-            elif result_a != result_b and result_b != result_c: # this works for some discharge sites
-                query_end_date = result_a
-                print("second option query end date", query_end_date)
-            elif result_a == result_b and result_a < result_c:
-                 query_end_date = result_c
-                 print("third option query end date", query_end_date)
-            else:
-
-                query_end_date = result_b
-                print("final option query end date", query_end_date)
-        #elif obs_b == "" and data_source == 'File Import' and not pd.read_json(import_data, orient="split").empty: # if your are importind data you can use
-        #        import_data = pd.read_json(import_data, orient="split").empty
-        #        query_end_date = import_data['datetime'].max()
-        #        print("no obs import data obs b", query_end_date)
-        return {'display': 'flex', 'flex-direction': 'row'}, obs_a_options, obs_b_options, query_start_date, query_end_date, statistics # obs a is query start date obs b is query end date
-
-    else:
-        #min_obs = 0
-        #max_obs = 0
-        #return {'display': 'none'}, [""], [""], "", "", ""
+    Input('startDate', 'value'),
+    Input('endDate', 'value'),
+    State('site', 'children'),
+    Input("site_sql_id", "children"),
+    Input('parameter', 'children'),
+    State('Select_Data_Source', 'value'),
+    Input('select_datetime_by_obs_a', 'value'),
+    Input('select_datetime_by_obs_b', 'value'),
+    State('data_interval', 'children'),
+    Input('statistics', 'data'),
+)
+def daterange(observations, startDate, endDate, site, site_sql_id, parameter, 
+              data_source, obs_a, obs_b, data_interval, stats_json):
+    if not site_sql_id or not parameter or not stats_json:
         return dash.no_update
+    else:
+        # create obs for dropdowns 
+        query_start_date = ""
+        query_end_date = ""
+        
+        # Load statistics dataframe
+        stats_df = pd.read_json(stats_json, orient="split")
+        stats_df['datetime'] = pd.to_datetime(stats_df['datetime']).dt.tz_localize(None)
+        
+        # Read observations
+        obs = pd.read_json(observations, orient="split")
+        obs['datetime'] = pd.to_datetime(obs['datetime'])  # Ensure datetime column is datetime type
+        # Combine observations with statistics
+        obs = pd.concat([obs, stats_df], ignore_index=True)
+        obs = obs.sort_values(by='datetime', ascending=False)
+        
+        # Generate observation options (shared logic for both a and b)
+        obs_options = [
+            f"date: {row['datetime'].strftime('%Y-%m-%d %H:%M')} observation: {row['observation_number']}"
+            for _, row in obs.iterrows()
+            if pd.notna(row['datetime'])
+        ]
+        
+        # Extract unique years
+        obs_years = obs['datetime'].dropna().dt.year.unique().tolist()
+        
+        # Ensure current year and next year are included
+        current_year = datetime.now().year
+        if current_year not in obs_years:
+            obs_years.append(current_year)
+        
+        future_year = (datetime.now() + timedelta(days=91)).year
+        if future_year not in obs_years:
+            obs_years.append(future_year)
+        
+        # Add year options
+        year_options = [f"water year: {year}" for year in sorted(obs_years)]
+        full_options = year_options + obs_options
+        
+        if startDate is not None:
+            query_start_date = startDate
+        else:
+            # Process obs_a (start date)
+            if obs_a:
+                if str(obs_a).lower().startswith("water year"):
+                    year = int(str(obs_a).lower().replace("water year:", "").strip())
+                    query_start_date = datetime(year-1, 10, 1, 0, 0).strftime('%Y-%m-%d %H:%M')
+                else:
+                    obs_a_str = obs_a.split("date: ")[1].split(" observation:")[0].strip()
+                    obs_a_dt = datetime.strptime(obs_a_str, '%Y-%m-%d %H:%M')
+                    query_start_date = pd.to_datetime(obs_a_dt).to_pydatetime()
+                    
+                    from import_data import sql_get_closest_datetime
+                    try:
+                        result_a, result_b, result_c = sql_get_closest_datetime(parameter, site_sql_id, query_start_date)
+                        query_start_date = result_a
+                    except:
+                        pass
+        if endDate is not None:
+            query_end_date = endDate
+        else:
+            # Process obs_b (end date)
+            if obs_b:
+                if str(obs_b).lower().startswith("water year"):
+                    year = int(str(obs_b).lower().replace("water year:", "").strip())
+                    query_end_date = datetime(year, 10, 1, 0, 0).strftime('%Y-%m-%d %H:%M')
+                else:
+                    obs_b_str = obs_b.split("date: ")[1].split(" observation:")[0].strip()
+                    obs_b_dt = datetime.strptime(obs_b_str, '%Y-%m-%d %H:%M')
+                    query_end_date = pd.to_datetime(obs_b_dt).to_pydatetime()
+                    
+                    try:
+                        result_a, result_b, result_c = sql_get_closest_datetime(parameter, site_sql_id, query_end_date)
+                        
+                        if result_a == result_b and result_b == result_c:
+                            query_end_date = pd.Timestamp(query_end_date).floor(f'{data_interval}T') + pd.Timedelta(f"{data_interval}T")
+                        elif result_a != result_b and result_b != result_c:
+                            query_end_date = result_a
+                        elif result_a == result_b and result_a < result_c:
+                            query_end_date = result_c
+                        else:
+                            query_end_date = result_b
+                    except:
+                        pass
 
-
-
+    
+    
+    return (
+        full_options,  # obs_a_options
+        full_options,  # obs_b_options
+        query_start_date, 
+        query_end_date
+    )
 # Pick Range, query existing data in SQL Database
 @app.callback(
     # Output('output-container-date-picker-range', 'children'),
@@ -991,9 +1178,9 @@ def update_daterange(query_start_date, query_end_date, site, site_sql_id, parame
                 # THIS IS DUMB, ITS A PLACHHOULDER there needs to be a formula to convert wl feet
                 if df['data'].mean() < 50: # if under 30 assumed to be psi
                     df['data'] = round((df['data']*68.9476), 3) # convert to millibar
-                elif df["data"].mean() > 50 and df["data"].mean() < 999: # assume kpa
+                elif df["data"].mean() > 50 and df["data"].mean() < 850: # assume kpa
                     df["data"] = round(df["data"] * 10, 3)
-                elif df['data'].mean() > 999: # assumed to be millibar
+                elif df['data'].mean() > 850: # assumed to be millibar
                     df['data'] = df['data'] # millibar
 
                 barometer_query = sql_import("barometer", barometer_sql_id, df['datetime'].min(), df['datetime'].max()) # fx converts to PST and out of PST
@@ -1003,7 +1190,7 @@ def update_daterange(query_start_date, query_end_date, site, site_sql_id, parame
                  
                 df = pd.merge(df,barometer_query[['datetime', "barometer_data"]],on=['datetime'])
                   
-                df['data'] = ((df['data']-df["barometer_data"]) * 0.0335).round(3)
+                df['data'] = ((df['data']-df["barometer_data"]) * 0.0335).round(3) # convert to water level feat
                 output = df.drop(['barometer_data'], axis=1)
                 
                 return  output.to_json(orient="split")#, df['datetime'].min() + timedelta(hours=(7)), df['datetime'].max() + timedelta(hours=(7))
@@ -1022,18 +1209,11 @@ def update_daterange(query_start_date, query_end_date, site, site_sql_id, parame
          return pd.DataFrame().to_json(orient="split")
 
 
-
-
 # show, amd add observations in observations datatable
 @app.callback(
     Output('observations_datatable', 'data'),
-    Output('observations_datatable', 'columns'),
-    
+    Output('observations_datatable', 'columns'),  
     Input("observations", "data"), 
-    
-    #Output('observations_datatable', 'columns'),
-        
-       
     Input('add_row_button_a', 'n_clicks'),
     Input('refresh_button_a', 'n_clicks'),
     Input('show_inrange_observations', 'value'),
@@ -1043,30 +1223,22 @@ def update_daterange(query_start_date, query_end_date, site, site_sql_id, parame
     State('observations_datatable', 'columns'),
     Input('query_start_date', 'data'),  # obs a
     Input('query_end_date', 'data'), # obs b),
-    
     )
 def observations_dattable(observations, add_row_button_a, refresh_button_a, inrange_observations, parameter, site_sql_id, rows, columns, query_start_date, query_end_date):
 
     observations = pd.read_json(observations, orient="split")
-        #observations = reformat_data(observations)
-    
-   
-    #print(observations)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] 
     #ctx = callback_context
     #if ctx.triggered: 
     if not observations.empty and parameter != "0":
     #if parameter != "0": # get obs
         if "add_row_button_a.n_clicks" in changed_id:
-                rows.append({c['id']: '' for c in columns})  # Add a new blank row
-                return rows, columns#, [{"name": i, "id": i} for i in observations.columns]
-            
+            rows.append({c['id']: '' for c in columns})  # Add a new blank row
+            return rows, columns#, [{"name": i, "id": i} for i in observations.columns]
         else:
             if "refresh_button_a.n-clicks" in changed_id:
-                    from import_data import get_observations_join
-                    observations = get_observations_join(parameter, site_sql_id, "*", "*") # convert start/end date from utc to pdt
-                    
-                
+                from import_data import get_observations_join
+                observations = get_observations_join(parameter, site_sql_id, "*", "*") # convert start/end date from utc to pdt     
             if parameter == "FlowLevel" or parameter == "discharge" and "parameter_observation" in observations.columns:
                                 observations.rename(columns={"parameter_observation": "q_observation"}, inplace=True)
             if (parameter == "Conductivity" or parameter == "conductivity" or parameter == "water_temperature" )and "observation_stage" in observations.columns:
@@ -1098,18 +1270,16 @@ def observations_dattable(observations, add_row_button_a, refresh_button_a, inra
 
 
 
-### corrected_data
 @app.callback(
     Output("corrected_data_datatable", "data"),
     Output("corrected_data_datatable", "columns"),
     Input('import_data', 'data'),
-    Input('observations_datatable', 'data'), # I think this can be state as it doesnt need to trigger when it updates itself
-    Input('comparison_data', 'data'), # ideally this would be state but the comparison data seems to load after this dev
-    #Input('add_row_button_b', 'n_clicks'), # df is usually to big to add rows
+    Input('observations_datatable', 'data'),
+    Input('comparison_data', 'data'),
     State('parameter', 'children'),
     State('site', 'children'),
     State("site_sql_id", "children"),
-    State('corrected_data_datatable', 'data'), # I think this can be state as it doesnt need to trigger when it updates itself
+    State('corrected_data_datatable', 'data'),
     Input("realtime_update", "value"),
     Input("run_job", "n_clicks"),
     State('Ratings', 'value'),
@@ -1118,117 +1288,175 @@ def observations_dattable(observations, add_row_button_a, refresh_button_a, inra
     State("fill_limit", 'value'),
     State("fill_limit_number", 'value'),
     State("fill_limit_area", "value"),
-    State("set_method", 'value'), # sets method for interpolation
-    State('set_limit', 'value'), # fill missing data
-    State('limit_number', 'value'), # fill missing data
-    State('limit_direction', 'value'), # fill missing data
-    State('limit_area', 'value'), # fill missing data
-    Input('fill_missing_data', 'n_clicks'), # fill missing data
+    State("set_method", 'value'),
+    State('set_limit', 'value'),
+    State('limit_number', 'value'),
+    State('limit_direction', 'value'),
+    State('limit_area', 'value'),
+    Input('fill_missing_data', 'n_clicks'),
     State('data_interval', 'children'),
     Input('resample_button', 'n_clicks'),
-    State('query_start_date', 'data'),  # obs a
-    State('query_end_date', 'data'), # obs b),
+    State('query_start_date', 'data'),
+    State('query_end_date', 'data'),
     Input("to_observations_button", "n_clicks"),
     State('Select_Data_Source', 'value'),
-    Input("data_axis", "value"),  # data level data or corrected_data (primary/secondary)
+    Input("data_axis", "value"),
     Input('apply_discharge_offset', 'value'),
+    Input('set-dry-indicator', 'n_clicks'),
+    Input('apply-dry-threshold-raw', 'n_clicks'),
+    Input('apply-dry-threshold-corrected-data', 'n_clicks'),
+    Input('clear-dry-indicator', 'n_clicks'),
+    State('start-dry-indicator-range', 'value'),
+    State('end-dry-indicator-range', 'value'),
+    State('dry-threshold-raw-input', 'value'),
+    State('dry-threshold-corrected-data-input', 'value'),
+    State('interp-data', "value"),
+    State('interp-corrected-data', "value"),
 )
-
-  
-
-def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_sql_id, rows, realtime_update, run_job, rating_number, basic_forward_fill, basic_backward_fill, fill_limit, fill_limit_number, fill_area, method, set_limit, limit_number, limit_direction, limit_area, fill_missing_data,data_interval, resample, query_start_date, query_end_date, to_observations_button, data_source, data_level, apply_discharge_offset):
-    
-    
+def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_sql_id, rows, realtime_update, run_job, rating_number, basic_forward_fill, basic_backward_fill, fill_limit, fill_limit_number, fill_area, method, set_limit, limit_number, limit_direction, limit_area, fill_missing_data, data_interval, resample, query_start_date, query_end_date, to_observations_button, data_source, data_level, apply_discharge_offset, set_dry_indicator, apply_dry_threshold_raw, apply_dry_threshold_corrected_data, clear_dry_indicator, start_dry_indicator_range, end_dry_indicator_range, dry_threshold_raw_input, dry_threshold_corrected_data_input, interp_data, interp_corrected_data):
     from data_cleaning import reformat_data, initial_column_managment, column_managment, fill_timeseries
     from discharge import discharge_calculation
+    from dash import ctx
     
     try:
         observation = config[parameter]["observation_class"]
     except KeyError:
         observation = ""
+    
     # Get the triggered property from Dash callback context
-    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] 
-   
-
-    if not pd.read_json(import_data, orient="split").empty and not "datetime" in pd.DataFrame(rows).columns: # and import_data is not None:
+    changed_id = ctx.triggered_id
+    
+    # Check if this is a fresh import_data trigger - if so, ignore existing rows
+    force_reload = (changed_id == "import_data")
+    
+    # Determine which data source to use
+    if force_reload and import_data:
+        try:
             data = pd.read_json(import_data, orient="split")
-    elif "datetime" in pd.DataFrame(rows).columns:
-            data = pd.DataFrame(rows)
-    else:
+            if data.empty:
+                return dash.no_update
+            print("!!! FORCE RELOAD from import_data !!!")
+            print(data.head())
+        except Exception as e:
+            print(f"Error reading import_data: {e}")
             return dash.no_update
+    elif import_data and (not rows or "datetime" not in pd.DataFrame(rows).columns):
+        try:
+            data = pd.read_json(import_data, orient="split")
+            if data.empty:
+                return dash.no_update
+            print("initial import data")
+            print(data.head())
+        except Exception as e:
+            print(f"Error reading import_data: {e}")
+            return dash.no_update
+    elif rows and "datetime" in pd.DataFrame(rows).columns:
+        data = pd.DataFrame(rows)
+        print("using existing rows data")
+    else:
+        print("No valid data source, returning no_update")
+        return dash.no_update
 
     data = reformat_data(data)
     data = initial_column_managment(data)
     data = fill_timeseries(data, data_interval)
     
-        # format observations if obser
-    if obs_rows: #"datetime" in observations.columns:
-            #observations = pd.DataFrame(obs_rows)
-        observations = pd.DataFrame(obs_rows) # but be warned; if obs returns a blank datatable this may mess up
+    # format observations if present
+    if obs_rows:
+        observations = pd.DataFrame(obs_rows)
         observations = reformat_data(observations)
         observations = observations.dropna(subset=['datetime'])
-       
         data = pd.merge_asof(data.sort_values('datetime'), observations.sort_values('datetime'), on='datetime', tolerance=pd.Timedelta(f"{int(data_interval)/2}m"), direction="nearest")
        
     data = reformat_data(data)
-    # add existing data, will get deleted at the beginning of each itteration
-    #if data_source is False: # File Import  -  only need this when uploading data
-
-    comparison_data = pd.read_json(comparison_data, orient = "split")
-    if not comparison_data.empty:
-            comparison_data = reformat_data(comparison_data)
-            c_data = comparison_data.loc[(comparison_data["site"] == site) & (comparison_data["parameter"] == parameter)]
-            c_data = c_data[["datetime", "corrected_data"]] # comparison data only contains the parameter so for discharge the comparison "corrected_data" is "discharge"
-            if not c_data.empty:
-                c_data = c_data.rename(columns={"datetime": "datetime", "corrected_data": f"c_{parameter}"})
-            if parameter == "discharge":
-                wl_data = comparison_data.loc[(comparison_data["site"] == site) & (comparison_data["parameter"] == "stage")]
-                wl_data = wl_data[["datetime", "corrected_data"]] # comparison data only contains the parameter so for discharge the comparison "corrected_data" is "discharge"
-                if not wl_data.empty:
-                    wl_data = wl_data.rename(columns={"datetime": "datetime", "corrected_data": f"c_stage"})
-                    c_data = wl_data.merge(c_data, left_on="datetime", right_on="datetime", how = "outer")
-        # data = pd.merge(comparison_data.sort_values('datetime'), data.sort_values('datetime'), on='datetime', )
-        #DataFrame.join(other, on=None, how='left', lsuffix='', rsuffix='', sort=False, validate=None)
-           
-            #data = c_data.merge(data, left_on="datetime", right_on="datetime", how = "outer") # eg
-            data = data.merge(c_data, left_on="datetime", right_on="datetime", how = "outer") # eg
-            #data = column_managment(data)
-            #data = pd.concat([ data, c_data], axis=0).sort_values(by="datetime").reset_index(drop=True)
-
+    
+    # add existing data
+    if comparison_data:
+        try:
+            comparison_data = pd.read_json(comparison_data, orient="split")
+            if not comparison_data.empty:
+                comparison_data = reformat_data(comparison_data)
+                c_data = comparison_data.loc[(comparison_data["site"] == site) & (comparison_data["parameter"] == parameter)]
+                c_data = c_data[["datetime", "corrected_data"]]
+                if not c_data.empty:
+                    c_data = c_data.rename(columns={"datetime": "datetime", "corrected_data": f"c_{parameter}"})
+                if parameter == "discharge":
+                    wl_data = comparison_data.loc[(comparison_data["site"] == site) & (comparison_data["parameter"] == "stage")]
+                    wl_data = wl_data[["datetime", "corrected_data"]]
+                    if not wl_data.empty:
+                        wl_data = wl_data.rename(columns={"datetime": "datetime", "corrected_data": f"c_stage"})
+                        c_data = wl_data.merge(c_data, left_on="datetime", right_on="datetime", how="outer")
+                data = data.merge(c_data, left_on="datetime", right_on="datetime", how="outer")
+        except:
+            pass
+    
+    if "c_discharge" in data.columns and comparison_data is None:
+        data.drop("c_discharge", axis=1, inplace=True)
           
     # Realtime update or run job logic
-    if realtime_update is True or 'run_job' in changed_id:
-                from interpolation import basic_interpolation, run_basic_forward_fill, run_basic_backward_fill
-                # fill missing data
-                changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-                if "to_observations_button" in changed_id:
-                    from data_cleaning import to_observations
-                    data = to_observations(data, query_start_date, query_end_date)
-                if "basic_interpolate_missing_data" in changed_id:
-                    
-                    data = basic_interpolation(data, method, set_limit, limit_number, limit_direction, limit_area)
-                if "basic_backward_fill" in changed_id:
-                     data = run_basic_backward_fill(data, fill_limit,fill_limit_number, fill_area)
-                if "basic_forward_fill" in changed_id:
-                     data = run_basic_forward_fill(data, fill_limit, fill_limit_number, fill_area)
-                if "resample_button" in changed_id:
-                    from interpolation import resample
-                    data = resample(data, data_interval)
-                data = parameter_calculation(data, data_level)
-                    
-                # Additional logic for specific parameters (e.g., discharge)
-                if (parameter == "discharge" or parameter == "FlowLevel") and rating_number != "NONE":   
-                    data = discharge_calculation(data, rating_number, site_sql_id, apply_discharge_offset) #apply_discharge_offset disabled=True
+    if realtime_update is True or changed_id == 'run_job':
+        if changed_id == "to_observations_button":
+            from data_cleaning import to_observations
+            data = to_observations(data, query_start_date, query_end_date)
+        if changed_id == "basic_interpolate_missing_data":
+            from interpolation import basic_interpolation
+            data = basic_interpolation(data, method, set_limit, limit_number, limit_direction, limit_area, interp_data, interp_corrected_data)
+        if changed_id == "basic_backward_fill":
+            from interpolation import run_basic_backward_fill
+            data = run_basic_backward_fill(data, fill_limit, fill_limit_number, fill_area, interp_data, interp_corrected_data)
+        if changed_id == "basic_forward_fill":
+            from interpolation import run_basic_forward_fill
+            data = run_basic_forward_fill(data, fill_limit, fill_limit_number, fill_area, interp_data, interp_corrected_data)
+        if changed_id == "resample_button":
+            from interpolation import resample_data
+            data = resample_data(data, data_interval)
+        data = parameter_calculation(data, data_level)
+        
+    # Additional logic for specific parameters
+    if (parameter == "discharge" or parameter == "FlowLevel") and rating_number != "NONE":   
+        data = discharge_calculation(data, rating_number, site_sql_id, apply_discharge_offset)
+    
+    if changed_id == "basic_interpolate_missing_data":
+        from interpolation import basic_interpolation
+        data = basic_interpolation(data, method, set_limit, limit_number, limit_direction, limit_area, interp_data, interp_corrected_data)
+    elif changed_id == "basic_backward_fill":
+        from interpolation import run_basic_backward_fill
+        data = run_basic_backward_fill(data, fill_limit, fill_limit_number, fill_area, interp_data, interp_corrected_data)
+    elif changed_id == "basic_forward_fill":
+        from interpolation import run_basic_forward_fill
+        data = run_basic_forward_fill(data, fill_limit, fill_limit_number, fill_area, interp_data, interp_corrected_data)
+    elif changed_id == "resample_button":
+        from interpolation import resample_data
+        data = resample_data(data, data_interval)
+    elif changed_id == 'set-dry-indicator':
+        from data_cleaning import set_dry_indicator_function
+        data = set_dry_indicator_function(data, start_dry_indicator_range, end_dry_indicator_range)
+    elif changed_id == 'apply-dry-threshold-raw':
+        from data_cleaning import apply_dry_threshold_raw_function
+        data = apply_dry_threshold_raw_function(data, dry_threshold_raw_input)
+    elif changed_id == 'apply-dry-threshold-corrected-data':
+        from data_cleaning import apply_dry_threshold_corrected_data_function
+        data = apply_dry_threshold_corrected_data_function(data, dry_threshold_corrected_data_input)
+    elif changed_id == 'clear-dry-indicator':
+        from data_cleaning import clear_dry_indicator_function
+        data = clear_dry_indicator_function(data, start_dry_indicator_range, end_dry_indicator_range)
+        mask = (data['datetime'] >= start_dry_indicator_range) & (data['datetime'] <= end_dry_indicator_range)
+        data.loc[mask, 'warning'] = 0
+        data.loc[mask, 'corrected_data'] = np.nan
 
-                data = column_managment(data)
-                    # Reformat the datetime for Dash graph display
+    data = column_managment(data)
+    # Reformat the datetime for Dash graph display
     data["datetime"] = data["datetime"].dt.strftime('%Y-%m-%d %H:%M')
     
-                    # Return updated data and columns
-    return data.to_dict('records'), [{"name": i, "id": i} for i in data.columns]
-    #else:
-    #    return dash.no_update
- 
+    print("export data - about to return to datatable")
+    print(f"Rows: {len(data)}, Columns: {list(data.columns)}")
+    print(data.head())
+    
+    # Convert to records
+    data_records = data.to_dict('records')
+    columns = [{"name": i, "id": i} for i in data.columns]
+    
+    return data_records, columns
   
 @app.callback(
         #Output(component_id='graph_output', component_property='children'),
@@ -1239,11 +1467,7 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         State('site', 'children'),
         State('site_sql_id', 'children'),
         State('parameter', 'children'),
-
         Input('comparison_data', 'data'),
-
-        #Input('comparison_site_sql_id', 'children'),
-        #Input('comparison_parameter', 'value'),
         State('Ratings', 'value'),
         Input("primary_min", "value"),
         Input("primary_max", "value"),
@@ -1254,9 +1478,7 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         State("display_statistics", "value"),
         State('query_start_date', 'data'),  # obs a
         State('query_end_date', 'data'), # obs b),
-        #df = df.loc[(df["datetime"] >= query_start_date) & (df["datetime"] <= query_end_date)].copy()
 )
-
 def graph(graph_realtime_update, df, site_selector_value, site, site_sql_id, parameter, comparison_data, rating, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics, query_start_date, query_end_date):
     from data_cleaning import reformat_data, parameter_calculation
     from graph_2 import cache_graph_export
@@ -1264,25 +1486,18 @@ def graph(graph_realtime_update, df, site_selector_value, site, site_sql_id, par
     comparison_data = pd.read_json(comparison_data, orient = "split")
     
     if not df.empty and graph_realtime_update is True:
-
         df = reformat_data(df) 
         if query_start_date != "" and query_end_date != "": # really we are trying to get rid of comparison data
                 df = df.loc[(df["datetime"] >= query_start_date) & (df["datetime"] <= query_end_date)].copy()
         if query_start_date == "" or not query_start_date:
-            print(df)
             query_start_date = df['datetime'].min()
-            print("graph fill query start date", query_start_date)
         if query_end_date == "" or not query_end_date:
             query_end_date = df['datetime'].max()
-            print("graph fill query end date", query_end_date)
         #fig = html.Div(dcc.Graph(figure = go.Figure()), style = {'width': '100%', 'display': 'inline-block'})
         fig = cache_graph_export(df, site_sql_id, site_selector_value, site, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
         return fig
     else:
             return dash.no_update
-
-    
-
 
 @app.callback(
         #Output('Corrected_Data', 'filter_query'),
@@ -1334,103 +1549,137 @@ def update_graph_range(graph_range, graph_point):
     State("statistics", "data"),
     State("display_statistics", "value"),
     State('query_start_date', 'data'),
-    State('query_end_date', 'data')
+    State('query_end_date', 'data'),
+    State('session-toggle', 'value')
 )
 def run_data_action(upload_clicks, export_clicks, df, site_selector_value, site, site_sql_id, parameter,
                     comparison_data, rating, primary_min, primary_max, secondary_min, secondary_max,
-                    normalize_data, statistics, display_statistics, query_start_date, query_end_date):
+                    normalize_data, statistics, display_statistics, query_start_date, query_end_date, session_toggle):
     
     from data_cleaning import reformat_data
-    from graph_2 import save_fig
+    from graph_2 import plot_for_save
     import pandas as pd
     import dash
+    from workup_notes import workup_notes_main
 
     triggered = dash.callback_context.triggered
-    if not triggered:
-        return dash.no_update
-
     trigger_id = triggered[0]['prop_id'].split('.')[0]
-    if trigger_id not in ["upload_data_button", "export_data_button"]:
-        return dash.no_update
+    
+    if trigger_id in ["upload_data_button", "export_data_button"]:
+        df = pd.DataFrame(df)
+        if "existing_data" in df.columns:
+            df = df[df["existing_data"].isnull()].copy()
+            df = df.dropna(subset=["data"])
+        if df.empty or df.shape[1] < 1:  # check if df is valid
+            return dash.no_update
+        else:
+          
+            df = reformat_data(df)
+            # Apply date filter
+            if query_start_date and query_end_date:
+                    df = df[(df["datetime"] >= query_start_date) & (df["datetime"] <= query_end_date)].copy()
+            
+            start_date = df["datetime"].min()
+            end_date = df["datetime"].max()
 
-    mode = "upload" if trigger_id == "upload_data_button"  and upload_clicks > 0 else "export"
+            # Standardize parameter naming
+            param_map = {
+                    "Conductivity": "Conductivity",
+                    "conductivity": "Conductivity",
+                    "water_level": "water_level",
+                    "LakeLevel": "water_level",
+                    "groundwater_level": "groundwater_level",
+                    "Piezometer": "groundwater_level",
+                    "discharge": "discharge",
+                    "FlowLevel": "discharge"
+            }
+            parameter = param_map.get(parameter, parameter)
+            comparison_data = pd.read_json(comparison_data, orient="split")
+                
+            normalize_data = False  # for upload plot standard data
+                
+            # Fix session toggle check - handle Dash checklist format
+            session_enabled = session_toggle and 'on' in session_toggle if isinstance(session_toggle, list) else bool(session_toggle)
+                
+            if session_enabled:  # export graph and workup notes by session
+                # define obs
+                if 'q_observation' in df.columns:
+                        obs = 'q_observation'
+                elif "field_observations" in df.columns:
+                        obs = "field_observations"
+                elif "observations" in df.columns:
+                        obs = "observations"
+                elif "observation" in df.columns:
+                        obs = "observation"
+                elif "observation_stage" in df.columns:
+                        obs = "observation_stage"
+                elif "observation_stage" not in df.columns and "parameter_observation" in df.columns:
+                        obs = "parameter_observation"
+                else:
+                        obs = None
 
-    # Ensure DataFrame is valid
-    df = pd.DataFrame(df)
-    if df.empty or df.shape[1] < 1:
-        return dash.no_update
+                if obs and obs in df.columns:
+                    obs_dates = df[df[obs].notna()]['datetime'].sort_values()
 
-    notes_df = df.copy()
-
-    # Drop existing data if needed
-    if "existing_data" in df.columns:
-        df = df[df["existing_data"].isnull()]
-
-    df = reformat_data(df)
-
-    # Apply date filter
-    if query_start_date and query_end_date:
-        df = df[(df["datetime"] >= query_start_date) & (df["datetime"] <= query_end_date)].copy()
-    df = df.dropna(subset=["data"])
-
-    end_date = df["datetime"].max().date()
-
-    # Standardize parameter naming
-    param_map = {
-        "Conductivity": "Conductivity",
-        "conductivity": "Conductivity",
-        "water_level": "water_level",
-        "LakeLevel": "water_level",
-        "groundwater_level": "groundwater_level",
-        "Piezometer": "groundwater_level",
-        "discharge": "discharge",
-        "FlowLevel": "discharge"
-    }
-    parameter = param_map.get(parameter, parameter)
+                    # Create graphs for each period between observations
+                    for i in range(len(obs_dates) - 1):
+                        start_date = obs_dates.iloc[i]
+                        end_date = obs_dates.iloc[i + 1]
+                                
+                        # Filter data for this period
+                        period_df = df[(df['datetime'] >= start_date) & (df['datetime'] <= end_date)].copy()
+                                
+                        if len(period_df) > 0:  # session upload
+                            plot_for_save(period_df, site_selector_value, site_sql_id, site, parameter, comparison_data, 
+                                            primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
+                            workup_notes_main(period_df, parameter, site_sql_id, site)
+                            desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]
+                            df_export = period_df[[col for col in desired_order if col in period_df.columns]].copy()
+                            export_path = f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter}_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.csv"
+                            df_export.to_csv(export_path, index=False)
+                else:
+                    # Fallback if no observation column found
+                    session_enabled = False
+                        
+            if not session_enabled:  # no session upload
+                plot_for_save(df, site_selector_value, site_sql_id, site, parameter, comparison_data, 
+                                primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
+                workup_notes_main(df, parameter, site_sql_id, site)  # Fixed: use df instead of undefined period_df
+                desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]
+                df_export = df[[col for col in desired_order if col in df.columns]].copy()
+                export_path = f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter}_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.csv"
+                df_export.to_csv(export_path, index=False)
+                
+            # sql upload
+            if trigger_id == "upload_data_button":
+                from sql_upload import full_upload
+                    
+                # Use the same df_export logic as above
+                desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]
+                df_final = df[[col for col in desired_order if col in df.columns]].copy()
+                    
+                full_upload(df_final, parameter, site_sql_id, 7)
+                print("Upload complete")
+                return "  uploaded"
+            else:
+                return "exported"
 
     
+    else:
+        return dash.no_update
 
-    # Save graph
-    if mode == "upload" and upload_clicks > 0:
-        comparison_data = pd.read_json(comparison_data, orient="split")
-        normalize_data = False # for upload plot standard data
-        #comparison_data = pd.DataFrame()
-        save_fig(df, site_selector_value, site_sql_id, site, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
-        #from workup_notes import workup_notes_main
-        #workup_notes_main(notes_df, parameter, site_sql_id, site)
-        # Column order
-        desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]
-        df = df[[col for col in desired_order if col in df.columns]].copy()
-        from sql_upload import full_upload
-        full_upload(df, parameter, site_sql_id, 7)
-
-        export_path = f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter}_{end_date}.csv"
-        df.to_csv(export_path)
-        print("Upload complete")
-        return "  uploaded"
-
-    elif mode == "export" and export_clicks > 0:
-        
-        comparison_data = pd.read_json(comparison_data, orient="split")
-        
-        # Column order
-        
-        save_fig(df, site_selector_value, site_sql_id, site, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
-        desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]
-        df = df[[col for col in desired_order if col in df.columns]].copy()
-        
-        df.to_csv(f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter}_{end_date}.csv", index=False)
-        print(f"Exported to W:/STS/hydro/GAUGE/Temp/Ian's Temp")
-        return "  exported"
-
-    return dash.no_update
 
 
 
 # You could also return a 404 "URL not found" page here
 if __name__ == '__main__':
     app.run_server(port="8050",host='127.0.0.1',debug=True)
-   
+    # Instead of 0.0.0.0, bind to VPN IP
+    #app.run_server(
+    #    host='10.4.12.49',  # Your VM's VPN IP
+    #    port=8050
+    #)
+    
     #app.run_server(host='0.0.0.0',port='8050')  
     # ethernet adapter ipv4 address 10.219.226.110
     #app.run_server(host='10.219.226.110',port='8050')  

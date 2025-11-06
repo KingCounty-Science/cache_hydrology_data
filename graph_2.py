@@ -113,15 +113,24 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
         base_parameter_axis = False
         derived_parameter_axis = True
         comparison_axis = True
+        primary_y_title = "stage (wl feet)" # stage
+        secondary_y_title = "discharge (cfs)" # discharge
+
 
     elif parameter == "LakeLevel" or parameter == "Piezometer" or parameter == "water_level":
         base_parameter = "water_level"
         derived_parameter = "water_level"
+        primary_y_title = "water level (wl feet)"
+        secondary_y_title = "water level (wl feet)"
+        data_axis = True # uncorrected data
+        base_parameter_axis = False # water level/stage for discharge
+        derived_parameter_axis = False # stage
 
     else:
         base_parameter = parameter
         derived_parameter = parameter
-  
+        primary_y_title = f"{parameter.replace('_', ' ')} ({config[parameter]['unit']})"
+        secondary_y_title = f"{parameter.replace('_', ' ')} ({config[parameter]['unit']})"
         #elif comparison_axis == "primary":
         #    comparison_axis = False
         #elif comparison_axis == "secondary":
@@ -147,6 +156,12 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
         comparison_data = reformat_data(comparison_data)
     except:
         pass
+
+    ### filter out dry data
+    dry = df.copy()
+    dry.loc[dry['corrected_data'] != -99, 'corrected_data'] = np.nan
+    df.loc[df['corrected_data'] == -99, 'corrected_data'] = np.nan
+
     # get site number?
      # replace _ with space
     #subplot_titles = [value.replace("_", " ") for value in df.index.unique()]
@@ -209,27 +224,16 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
     # font 
      # font 
     fig.update_layout(font_family=font, title_font_family=font,) # updates font for whole figure
-    #fig.update_yaxes(title_font_family=font, secondary = False)
-    #fig.update_yaxes(title_font_family=font, Secondary = True)
        
     row_count = 1
-
-       
-        ### Water temperature
-        #for i in df.index.unique():
-       
-        #fig.update_yaxes(range=[0,1], row=row_count, col=1, secondary_y=True)
-    # primary y axis
     
-    fig.update_yaxes(range=[primary_min, primary_max], showticklabels=True, ticks="inside", showgrid=False, showline=True, linecolor='black', linewidth=2, title_text=f"{derived_parameter.replace('_', ' ')} ({config[parameter]['unit']})", row=row_count, col=1, secondary_y=False, )
+  
+    fig.update_yaxes(range=[primary_min, primary_max], showticklabels=True, ticks="inside", showgrid=False, showline=True, linecolor='black', linewidth=2, title_text = primary_y_title, row=row_count, col=1, secondary_y=False, )
+    # fig.update_yaxes(range=[primary_min, primary_max], showticklabels=True, ticks="inside", showgrid=False, showline=True, linecolor='black', linewidth=2, title_text=f"{derived_parameter.replace('_', ' ')} ({config[parameter]['unit']})", row=row_count, col=1, secondary_y=False, )
     # range=[primary_min, primary_max],
     # secondary y axis
-    fig.update_yaxes(range=[primary_min, primary_max], showticklabels=True, ticks="inside", showgrid=False, showline=True, linecolor='black', linewidth=2, row=row_count, col=1, secondary_y=True)
+    fig.update_yaxes(range=[primary_min, primary_max], showticklabels=True, ticks="inside", showgrid=False, showline=True, linecolor='black', linewidth=2, title_text = secondary_y_title, row=row_count, col=1, secondary_y=True)
     # range=[primary_min, primary_max], 
-
-    
-
-
     tick_format = '%b-%d' # shows month and day (%y year without centuary %Y year with century) 
     # Check if the data spans more than one year
     min_year = df['datetime'].min().year
@@ -269,35 +273,15 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
     #fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor='lightgray', major_ticks="outside",  tick0=major_ticks[0],  )# First minor tick
     # minor ticks
     fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor='lightgray', minor_ticks="outside",  tick0=minor_ticks[0],  )# First minor tick
-   
-    # Define major and minor tick locations
-
-
-    #if normalize_data == False:
-    # get observation df before normalization
-   # if any(col in df.columns for col in ["field_observations", "observations", "observation", "observation_stage"]):
-   #     if "field_observations" in df.columns:
-   #         obs = "field_observations"
-   #     if "observations" in df.columns:
-   #         obs = "observations"
-   #     if "observation" in df.columns:
-   ##         obs = "observation"
-    #    if "observation_stage" in df.columns:
-   #         obs = "observation_stage"
-   #     if "parameter_observation" in df.columns:
-   #         obs = "parameter_observation"#
 
     if 'offset' not in df.columns:
             df[f'offset'] =df[f'corrected_data']-df[f'data']
      
-       
-
     if ("q_observation" in df.columns or "discharge_observation" in df.columns):
             if "q_observation" in df.columns:
                 obs = "q_observation"
             if "discharge_observation" in df.columns:
-                obs = "discharge_observation"
-            # graph field observation
+                obs = "discharge_observation" 
           
     if normalize_data == True:
         exclude_cols = ["estimate", "datetime", "comment"]
@@ -307,18 +291,15 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                 d_min = df[col].min(skipna=True)
                 d_max = df[col].max(skipna=True)
                 df[col] = ((df[col] - d_min) / (d_max - d_min)).round(2)
-        
-    
     else:
         pass
 
-
     # comparison graph graph it first so it goes behind data
     if not comparison_data.empty:
-
         comparison_sites = comparison_data[["site", "parameter"]].drop_duplicates()
         for index, row in comparison_sites.iterrows():
-            dfc = comparison_data.loc[(comparison_data["site"] == row["site"]) & (comparison_data["parameter"] == row["parameter"])].copy()
+            dfc = comparison_data.loc[(comparison_data["site"] == row["site"]) & (comparison_data["parameter"] == row["parameter"])].copy() 
+            dfc.loc[dfc["corrected_data"] == -99, "corrected_data"] = np.nan # remove dry data
             if normalize_data == True:
                     d_min = dfc["corrected_data"].min(skipna=True)
                     d_max =  dfc["corrected_data"].max(skipna=True)
@@ -330,7 +311,7 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                     y=dfc.loc[:, f"corrected_data"],
                     line=dict(color=color_map.get(f'comparison', 'black'), width = 2),name=f"existing data",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
                     meta=f"existing data",), row=row_count, col=1, secondary_y=derived_parameter_axis),
-           
+          
             else: # graph comparison data
                 fig.add_trace(go.Scatter(
                     x=dfc.loc[:, "datetime"],
@@ -346,14 +327,28 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                 line=dict(color=color_map.get(f"data", 'black'), width = 1),
                 name=f"raw {base_parameter.replace('_', ' ')}",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
                 meta=f"raw {base_parameter.replace('_', ' ')}",),row=row_count, col=1, secondary_y=data_axis),
-                    
-    if f"corrected_data" in df.columns and parameter != "discharge": # if it is waterlevel only       
-                fig.add_trace(go.Scatter(
-                    x=df.loc[:, "datetime"],
-                    y=df.loc[:, f"corrected_data"],
-                    line=dict(color=color_map.get(f"corrected_data", 'black'), width = 2),name=f"corrected {base_parameter.replace('_', ' ')}",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
-                    meta=f"corrected {base_parameter.replace('_', ' ')}",), row=row_count, col=1, secondary_y=derived_parameter_axis),
     
+    # graph corrected data          
+    if f"corrected_data" in df.columns and parameter != "discharge": # if it is waterlevel only       
+        fig.add_trace(go.Scatter(
+            x=df.loc[:, "datetime"],
+            y=df.loc[:, f"corrected_data"],
+            line=dict(color=color_map.get(f"corrected_data", 'black'), width = 2),name=f"corrected {base_parameter.replace('_', ' ')}",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
+            meta=f"corrected {base_parameter.replace('_', ' ')}",), row=row_count, col=1, secondary_y=derived_parameter_axis),
+    
+        # graph dry data
+        if not dry.empty:
+            # find min
+            dry_min = df["corrected_data"].min()
+            if dry_min < 0+20: # in elevation not relative feet
+                dry_min = 0
+            dry.loc[dry['corrected_data'] == -99, 'corrected_data'] = dry_min
+            fig.add_trace(go.Scatter(
+                    x=dry.loc[:, "datetime"],
+                    y=dry.loc[:, "corrected_data"],
+                    line=dict(color='#6B7B8C', width=2),name=f"dry / non-detect",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
+                    meta=f"dry / non-detect",), row=row_count, col=1, secondary_y=derived_parameter_axis),
+
     if f"corrected_data" in df.columns and parameter == "discharge": # if it is waterlevel only       
                 fig.add_trace(go.Scatter(
                     x=df.loc[:, "datetime"],
@@ -361,7 +356,7 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                     line=dict(color=color_map.get(f"corrected_data", 'black'), width = 2),name=f"corrected {base_parameter.replace('_', ' ')}",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
                     meta=f"corrected {base_parameter.replace('_', ' ')}",), row=row_count, col=1, secondary_y=base_parameter_axis),
             
-    # special graph
+    # special graph -discharge
     if f"discharge" in df.columns:
         fig.update_yaxes(title_text="discharge cfs", row=row_count, col=1, showticklabels=True, secondary_y=derived_parameter_axis, )
                 #fig.update_yaxes(showgrid=False, showticklabels=False, row=row_count, col=1, secondary_y=True)
@@ -373,7 +368,6 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
     
         if "percentile_05" in display_statistics:
             y_values = [statistics["percentile_05"]] * len(df["datetime"])
-           
             fig.add_trace(go.Scatter(
                 x=df.loc[:, "datetime"],
                 y=y_values,
@@ -384,7 +378,6 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
 
         if "percentile_05_q" in display_statistics:
             y_values = [statistics["percentile_05_q"]] * len(df["datetime"])
-           
             fig.add_trace(go.Scatter(
                 x=df.loc[:, "datetime"],
                 y = y_values,
@@ -393,8 +386,6 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                 name=f"precentile_05_q", showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
                 meta=f"precentile_05_q",), row=row_count, col=1, secondary_y=derived_parameter_axis)
 
-    
-         
     # dry indicator
     if f"dry_indicator" in df.columns and data_axis != "none":
         
@@ -417,8 +408,7 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                 meta=f"mean",), row=row_count, col=1, secondary_y=average_axis),   
      # average
     if f"interpolated_data" in df.columns:
-        estimate_axis = base_parameter_axis
-               
+        estimate_axis = base_parameter_axis       
         fig.add_trace(go.Scatter(
             x=df.loc[:, "datetime"],
             y=df.loc[:, "interpolated_data"],
@@ -426,9 +416,6 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
             name=f"interpolated data",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
             meta=f"interpolated data",), row=row_count, col=1, secondary_y=estimate_axis),
     
-      
-    
-           
     # display field observation points    
     #if "field_observations" in df.columns or "observations" in df.columns or "observation" in df.columns or "observation_stage" in df.columns:
     if any(col in df.columns for col in ["field_observations", "observations", "observation", "observation_stage", "parameter_observation"]):
@@ -442,7 +429,6 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
             obs = "observation_stage"
         if "parameter_observation" in df.columns:
             obs = "parameter_observation"
-
         
         ### plot field observations    
         if "corrected_data" in df.columns and parameter != "discharge":
@@ -508,8 +494,6 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                             xref="x domain", yref="y domain",
                             x=.5, y=annotation_y-.02, showarrow=False, row=row_count, col=1, secondary_y=annotation_axis,)
     
-   
-           
     # discharge observation
     if ("q_observation" in df.columns or "discharge_observation" in df.columns):
             if "q_observation" in df.columns:
@@ -520,7 +504,7 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
             if "discharge" in df.columns:
                 fig.add_trace(go.Scatter(
                 x=df.loc[df[f'{obs}'].notna(),f'datetime'],
-                y=df.loc[df[f'{obs}'].notna(),f'{derived_parameter}'],
+                y=df.loc[df[f'{obs}'].notna(),f'{obs}'],
                 mode='markers', marker=dict(color=color_map.get(f"q_observation", 'black'), size=12, opacity=.9), 
                 name=f"{derived_parameter} observation",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',meta=f"{obs}",),
                 row=row_count, col=1, secondary_y = derived_parameter_axis)
@@ -529,9 +513,6 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
             annotation_x = 0.00 # allows offset for when year is displatyed on axis (obs is .05)
             annotation_y = 1 # up and down? (obs is -.07)
             
-          
-            
-               
             if "rating_number" in df.columns:
                     fig.add_annotation(text=f"rating: {df_min['rating_number'].iloc[0]}",
                         xref="x domain", yref="y domain",
@@ -586,8 +567,6 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
 def cache_graph_export(df, site_selector_value, site_code, site_name, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics):
     fig = parameter_graph(df, site_selector_value, site_code, site_name, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
    
-    
-   
     #fig.update_layout(autosize=False) # larer fig height will go off page
     fig.update_layout(autosize=True, height = 800, width = 1800) # larer fig height will go off page
    
@@ -597,155 +576,283 @@ def cache_graph_export(df, site_selector_value, site_code, site_name, parameter,
     return fig
 
 #def save_fig(df, site_code, site_name, parameter, comparison_site, comparison_parameter, data_axis, corrected_data_axis, derived_data_axis, observation_axis, comparison_axis):
-def save_fig(df, site_selector_value, site_sql_id, site, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics):
+
+def plot_for_save(df, site_selector_value, site_sql_id, site, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics):
    
-    end_date = df["datetime"].max().date()
-   
-    file_path = r"W:\STS\hydro\GAUGE\Temp\Ian's Temp\{0}_{1}_{2}.pdf".format(site, parameter, end_date)
     import pandas as pd
+    import numpy as np
     import matplotlib
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+
     matplotlib.use("Agg")  # Use non-GUI backend suitable for scripts/servers
-    print("export")
-   
-    
 
-
-    fig, ax1 = plt.subplots(figsize=(12, 6))
-
-    # Create secondary y-axis
-    ax2 = ax1.twinx()
-
-    # Plot 'corrected_data' and 'observation_stage' on the primary y-axis
-    # Plot 'data' on the secondary y-axis
-    # render order, first to grap is on the bottom
-
-    # colors https://matplotlib.org/stable/gallery/color/named_colors.html
-    if parameter == "water_temperature":
-        ax1.set_ylabel('water temperature (deg. C)')
-        if 'corrected_data' in df.columns:
-            ax1.plot(df['datetime'], df['corrected_data'], label='corrected data', color='firebrick', linewidth=2)
-
-    else:
-        ax1.set_ylabel('water level feet')  
-        if 'corrected_data' in df.columns:
-            ax1.plot(df['datetime'], df['corrected_data'], label='corrected data', color='blue', linewidth=2)
-
-    if 'observation_stage' in df.columns:
-        ax1.scatter(df['datetime'], df['observation_stage'], label='observation stage', color='lightgrey', s=30)
-    if 'parameter_observation' in df.columns:
-        ax1.scatter(df['datetime'], df['parameter_observation'], label=f"""{parameter} observation""", color='lightgrey', s=30)
-    #  secondary axis, if not discharge plot data
-    if 'data' in df.columns and parameter != "discharge":
-        ax2.plot(df['datetime'], df['data'], label='raw data', color='lightgrey', linewidth=1) 
-    if 'discharge' in df.columns: 
-        ax2.plot(df['datetime'], df['discharge'], label='raw data', color='lightseagreen', linewidth=2) 
-        ax2.scatter(df['datetime'], df['q_observation'], label=f"""{parameter} observation""", color='lightgrey', s=30)
-         # Label secondary axis
-        ax2.set_ylabel('discharge (CFS)')
+    def create_hydrograph(df, site, parameter, statistics):
+        """
+        Create a hydrograph plot with dual y-axes for hydrological data.
         
-    # Date formatting for x-axis
-    ax1.xaxis.set_major_locator(mdates.MonthLocator())
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-    fig.autofmt_xdate()
+        Parameters:
+        -----------
+        df : DataFrame
+            Input data with columns: datetime, corrected_data, data, etc.
+        site : str
+            Site name
+        parameter : str
+            Parameter type (water_temperature, discharge, etc.)
+        statistics : dict
+            Statistics dict with min/max values
+        """
+        dfp = df.copy()
+        end_date = dfp["datetime"].max().date()
+        
+        # Initialize figure with landscape dimensions
+        fig, ax1 = plt.subplots(figsize=(11, 8.5))
+        ax2 = ax1.twinx()
+        
+        # Prepare dry/non-detect data
+        dry = dfp.copy()
+        dry.loc[dfp['corrected_data'] != -99, 'corrected_data'] = np.nan
+        dfp.loc[dfp['corrected_data'] == -99, 'corrected_data'] = np.nan
+        
+        # Plot based on parameter type
+        if parameter == "discharge":
+            _plot_discharge_axes(ax1, ax2, dfp, dry)
+        else:
+            _plot_non_discharge_axes(ax1, ax2, dfp, dry, parameter)
+        
+        # Add observation points
+        _add_observations(ax1, ax2, dfp, parameter)
+        
+        # Configure axes
+        _configure_date_axis(ax1, dfp)
+        _set_axis_limits(ax1, ax2, dfp, statistics, parameter)
+        
+        # Add title and styling
+        plt.title(f"{site.replace('_', ' ')} {parameter.replace('_', ' ')} "
+                f"{dfp['datetime'].min().strftime('%Y-%m-%d')} to "
+                f"{dfp['datetime'].max().strftime('%Y-%m-%d')}")
+        
+        _style_plot(ax1, ax2)
+        
+        # Add legend
+        _add_legend(ax1, ax2)
+        
+        # Add metadata text
+        _add_metadata_text(fig, ax1, dfp, parameter)
+        
+        # Save and export
+        export_path = (f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/"
+                    f"{site}_{parameter.replace('_', ' ')}_"
+                    f"{dfp['datetime'].min().strftime('%Y-%m-%d')} to "
+                    f"{dfp['datetime'].max().strftime('%Y-%m-%d')}.pdf")
+        plt.savefig(export_path, dpi=300, format='pdf')
+        plt.close()
+        print(f"Graph saved to {export_path}")
+        
+        return export_path
 
- 
-    ax1.set_xlabel('date')
 
-
-    # Title
-    plt.title(f"{site.replace('_', ' ')} {parameter.replace('_', ' ')} {df['datetime'].min().strftime('%Y-%m-%d')} to {df['datetime'].max().strftime('%Y-%m-%d')}")
-
-    # Border around entire plot
-    for spine in ax1.spines.values():
-        spine.set_visible(True)
-        spine.set_linewidth(1.5)
-
-    # Hide grid lines
-    ax1.grid(False)
-    ax2.grid(False)
-
-    # Legend
-    handles1, labels1 = ax1.get_legend_handles_labels()
-    handles2, labels2 = ax2.get_legend_handles_labels()
-    if parameter == "discharge":
-        plt.legend(handles1 + handles2, labels1 + labels2, loc='lower left')
-    else:
-        plt.legend(handles1 + handles2, labels1 + labels2, loc='upper left')
-
-  
-    # Save the figure
-    plt.tight_layout()
-
-   
-
-    # Add text below x-axis
-    #plt.text(0.01, 0.01,  f"Start: {start_str}", ha='left', va='top', fontsize=9)
-    # plt.text(0.99, -0.05, f"End: {end_str}", ha='right', va='top', fontsize=9)
-    # stage 
-    fig.text(0.01, 0.07,  f" ", fontsize=9)
-    fig.text(0.01, 0.05,  f"first log: {df['datetime'].min().strftime('%Y-%m-%d %H:%M')}", fontsize=9)
-    fig.text(0.01, 0.03,  f"value {df.loc[df['datetime'] == df['datetime'].min(), 'corrected_data'].dropna().iloc[0]} | instrument: {df.loc[df['datetime'] == df['datetime'].min(), 'data'].dropna().iloc[0]}", fontsize=9)
-    fig.text(0.01, 0.01,  f"offset {(df.loc[df['datetime'] == df['datetime'].min(), 'corrected_data'].dropna().iloc[0] - df.loc[df['datetime'] == df['datetime'].min(), 'data'].dropna().iloc[0]).round(2)}", fontsize=9)
-    fig.text(.80, 0.07, f""" """, fontsize=9)
-    fig.text(.80, 0.05, f"""last log: {df["datetime"].max().strftime('%Y-%m-%d %H:%M')}""", fontsize=9)
-    fig.text(0.80, 0.03,  f"value: {df.loc[df['datetime'] == df['datetime'].max(), 'corrected_data'].dropna().iloc[0]} | instrument: {df.loc[df['datetime'] == df['datetime'].max(), 'data'].dropna().iloc[0]}", fontsize=9)
-    fig.text(0.80, 0.01,  f"offset: {(df.loc[df['datetime'] == df['datetime'].max(), 'corrected_data'].dropna().iloc[0] - df.loc[df['datetime'] == df['datetime'].max(), 'data'].dropna().iloc[0]).round(2)}", fontsize=9)
-
-    fig.text(0.50, 0.01,  f"changet: {((df.loc[df['datetime'] == df['datetime'].min(), 'corrected_data'].dropna().iloc[0] - df.loc[df['datetime'] == df['datetime'].min(), 'data'].dropna().iloc[0]).round(2) - (df.loc[df['datetime'] == df['datetime'].max(), 'corrected_data'].dropna().iloc[0] - df.loc[df['datetime'] == df['datetime'].max(), 'data'].dropna().iloc[0]).round(2)).round(2)}", fontsize=9)
-    
-    if parameter == "discharge":
-        if "rating_number" in df.columns:
-            q_obs_df = df.dropna(subset = ["q_observation"]).copy()
-            # discharge plot at top of graph
-            fig.text(0.01, 0.99, f"""rating {q_obs_df.loc[q_obs_df['datetime'] == q_obs_df['datetime'].min(), 'rating_number'].iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
-            fig.text(0.01, 0.96, f"""obs {q_obs_df.loc[q_obs_df['datetime'] == q_obs_df['datetime'].min(), 'q_observation'].iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
+    def _plot_discharge_axes(ax1, ax2, dfp, dry):
+        """Plot discharge parameter - stage on ax1, discharge on ax2."""
+        # ax1: Plot stage (corrected_data)
+        ax1.set_ylabel('water level feet')
+        
+        if 'corrected_data' in dfp.columns:
+            ax1.plot(dfp['datetime'], dfp['corrected_data'], 
+                    label='stage', color='blue', linewidth=2)
             
-            fig.text(0.80, 0.99, f"""rating {q_obs_df.loc[q_obs_df['datetime'] == q_obs_df['datetime'].max(), 'rating_number'].iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
-            fig.text(0.80, 0.96, f"""obs {q_obs_df.loc[q_obs_df['datetime'] == q_obs_df['datetime'].max(), 'q_observation'].iloc[0]}""", transform=ax1.transAxes, fontsize=9, verticalalignment='top',),
+            # Add dry/non-detect indicator
+            if not dry.empty:
+                dry_min = dfp["corrected_data"].min()
+                if dry_min < 20:
+                    dry_min = 0
+                dry.loc[dry["corrected_data"] == -99, "corrected_data"] = dry_min
+                ax1.plot(dry["datetime"], dry["corrected_data"], 
+                        label="dry / non-detect", color="#567494", linewidth=2)
         
-        #fig.text(0.80, -.1,  f"""rating {df.loc[df['datetime'] == df['datetime'].max(), 'rating_number'].dropna().iloc[0]}""")
-    
-    export_path = f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter.replace('_', ' ')}_{df['datetime'].min().strftime('%Y-%m-%d')} to {df['datetime'].max().strftime('%Y-%m-%d')}.pdf"
-    plt.savefig(export_path, dpi=300, format='pdf')
-    plt.close()
-    print(f"Graph saved to {export_path}")
-    # Use plotly.io.write_image to export the figure as a PDF
-    #pio.write_image(fig, file_path, format='pdf')
-    #fig.write_image(file_path, format="pdf", engine="kaleido")
-
-def format_cache_data(df_raw, parameter):
-    '''takes a raw df from cache, and does some pre-processing and adds settings'''
-    '''returns df to cache, which sends df back to this program'''
-    '''as this program is used in multiple parts of cache and is still in dev,
-        this is a good workaround from having to copy and paste the dev code'''
-    end_time = df_raw.tail(1)
-    end_time['datetime'] = pd.to_datetime(
-    end_time['datetime'], format='%Y-%m-%d %H:%M:%S', errors='coerce', infer_datetime_format=True)
-    end_time['datetime'] = end_time['datetime'].map(
-        lambda x: dt.datetime.strftime(x, '%Y_%m_%d'))
-    end_time = end_time.iloc[0, 0]
-
-    df_raw['datetime'] = pd.to_datetime(
-        df_raw['datetime'], format='%Y-%m-%d %H:%M:%S', errors='coerce', infer_datetime_format=True)
-    df_raw['datetime'] = df_raw['datetime'].map(
-        lambda x: dt.datetime.strftime(x, '%Y-%m-%d %H:%M:%S'))
+        # ax2: Plot discharge
+        if 'discharge' in dfp.columns:
+            ax2.plot(dfp['datetime'], dfp['discharge'], 
+                    label='discharge', color='lightseagreen', linewidth=2)
+            ax2.set_ylabel('discharge (CFS)')
 
 
-    if parameter == "water_level" or parameter == "LakeLevel":
-        observation = "observation_stage"
-       # df_raw = df_raw[["datetime", "data", "corrected_data"]]
-    elif parameter == "groundwater_level" or parameter == "Piezometer":
-        observation = "observation_stage"
-    elif parameter == 'water_temperature':
-        observation = "parameter_observation"
-    elif parameter == 'Conductivity' or 'conductivty':
-        observation = "parameter_observation"
-        #parameter = "Conductivity"
+    def _plot_non_discharge_axes(ax1, ax2, dfp, dry, parameter):
+        """Plot non-discharge parameters - corrected data on ax1, raw data on ax2."""
+        # ax1: Plot corrected data
+        if parameter == "water_temperature":
+            ax1.set_ylabel('water temperature (deg. C)')
+            color = 'firebrick'
+            label = parameter
+        else:
+            ax1.set_ylabel('water level feet')
+            color = 'blue'
+            label = 'corrected data'
+        
+        if 'corrected_data' in dfp.columns:
+            ax1.plot(dfp['datetime'], dfp['corrected_data'], 
+                    label=label, color=color, linewidth=2)
+            
+            # Add dry/non-detect indicator for non-temperature parameters
+            if parameter != "water_temperature" and not dry.empty:
+                dry_min = dfp["corrected_data"].min()
+                if dry_min < 20:
+                    dry_min = 0
+                dry.loc[dry["corrected_data"] == -99, "corrected_data"] = dry_min
+                ax1.plot(dry["datetime"], dry["corrected_data"], 
+                        label="dry / non-detect", color="#567494", linewidth=2)
+        
+        # ax2: Plot raw data
+        if 'data' in dfp.columns:
+            ax2.plot(dfp['datetime'], dfp['data'], 
+                    label='raw data', color='darkgrey', linewidth=2)
+            ax2.set_ylabel('raw data')
 
-    elif parameter == "discharge" or parameter == "FlowLevel":
-        #parameter = "discharge"
-        df_raw = df_raw
-        observation = "q_observation"
-    return df_raw, parameter, observation, end_time
+        # non discharge ax1 = corrected_data, ax2 = data
+    def _add_observations(ax1, ax2, dfp, parameter):
+        """Add observation scatter points."""
+        if 'observation_stage' in dfp.columns:
+            ax1.scatter(dfp['datetime'], dfp['observation_stage'], 
+                    label='observation stage', color="#444546", s=30)
+        
+        if 'parameter_observation' in dfp.columns:
+            ax1.scatter(dfp['datetime'], dfp['parameter_observation'], 
+                    label=f"{parameter} observation", color="#444546", s=30)
+        
+        if 'q_observation' in dfp.columns:
+            ax2.scatter(dfp['datetime'], dfp['q_observation'], 
+                    label='discharge observation', color="#444546", s=30)
+
+
+    def _configure_date_axis(ax1, dfp):
+        """Configure x-axis date formatting based on time span."""
+        time_span = dfp['datetime'].max() - dfp['datetime'].min()
+        
+        if time_span.days < 30:  # Less than a month
+            ax1.xaxis.set_major_locator(mdates.DayLocator(interval=max(1, time_span.days // 5)))
+            ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+        elif time_span.days <= 365:  # Less than a year
+            ax1.xaxis.set_major_locator(mdates.MonthLocator())
+            ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+        else:  # More than a year
+            ax1.xaxis.set_major_locator(mdates.YearLocator())
+            ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+
+
+    def _set_axis_limits(ax1, ax2, dfp, statistics, parameter):
+        """Set y-axis limits for both axes."""
+        min_corrected = statistics.get('min_corrected_data', dfp["corrected_data"].min())
+        max_corrected = statistics.get('max_corrected_data', dfp["corrected_data"].max())
+        
+        # Handle invalid values
+        if min_corrected == -99 or pd.isna(min_corrected):
+            min_corrected = dfp["corrected_data"].min()
+        if max_corrected == -99 or pd.isna(max_corrected):
+            max_corrected = dfp["corrected_data"].max() + 1
+        
+        # Set minimum to 0 if less than 20
+        if min_corrected < 20:
+            min_corrected = 0
+        corrected_diff = abs(min_corrected-max_corrected)
+        
+        ax1.set_ylim([min_corrected, max_corrected])
+        print(f"min corrected data: {min_corrected}, max corrected data: {max_corrected}")
+        
+        # Set secondary axis limits based on parameter
+        if parameter == "discharge" and 'discharge' in dfp.columns:
+            # For discharge plots: ax2 shows discharge
+            min_derived = statistics.get('min_derived_parameter', 0)
+            max_derived = statistics.get('max_derived_parameter', dfp["discharge"].max())
+            
+            if pd.isna(min_derived) or min_derived == -99:
+                min_derived = 0
+            if pd.isna(max_derived) or max_derived == -99:
+                max_derived = dfp["discharge"].max()
+            
+            ax2.set_ylim([min_derived, max_derived + 1])
+        else:
+            # For non-discharge plots: ax2 shows raw data
+            #diff = abs(dfp["corrected_data"].max() - dfp["corrected_data"].min())
+            mean = dfp['data'].mean()
+            ax2.set_ylim([dfp['data'].mean()-(corrected_diff/2), dfp['data'].mean()+(corrected_diff/2)])
+            #ax2.set_ylim([dfp['data'].min(), dfp['data'].min() + corrected_diff])
+
+
+    def _style_plot(ax1, ax2):
+        """Apply styling to plot."""
+        for spine in ax1.spines.values():
+            spine.set_visible(True)
+            spine.set_linewidth(1.5)
+        
+        ax1.grid(False)
+        ax2.grid(False)
+
+
+    def _add_legend(ax1, ax2):
+        """Add combined legend for both axes."""
+        handles1, labels1 = ax1.get_legend_handles_labels()
+        handles2, labels2 = ax2.get_legend_handles_labels()
+        
+        plt.tight_layout(rect=[0, 0.1, 1, 0.95])
+        plt.legend(handles1 + handles2, labels1 + labels2, 
+                loc='upper center', ncol=len(labels1 + labels2), 
+                bbox_to_anchor=(0.5, -0.03))
+
+
+    def _add_metadata_text(fig, ax1, dfp, parameter):
+        """Add metadata text to figure."""
+        first_idx = dfp['datetime'].idxmin()
+        last_idx = dfp['datetime'].idxmax()
+        
+        first_corrected = dfp.loc[first_idx, 'corrected_data']
+        first_data = dfp.loc[first_idx, 'data']
+        last_corrected = dfp.loc[last_idx, 'corrected_data']
+        last_data = dfp.loc[last_idx, 'data']
+        
+        first_offset = round(first_corrected - first_data, 2)
+        last_offset = round(last_corrected - last_data, 2)
+        change = round(last_offset - first_offset, 2)
+        
+        # Left side - first log
+        fig.text(0.01, 0.07, f"first log: {dfp['datetime'].min().strftime('%Y-%m-%d %H:%M')}", fontsize=9)
+        fig.text(0.01, 0.04, f"value {first_corrected} | instrument: {first_data}", fontsize=9)
+        fig.text(0.01, 0.01, f"offset {first_offset}", fontsize=9)
+        
+        # Right side - last log
+        fig.text(0.80, 0.07, f"last log: {dfp['datetime'].max().strftime('%Y-%m-%d %H:%M')}", fontsize=9)
+        fig.text(0.80, 0.04, f"value: {last_corrected} | instrument: {last_data}", fontsize=9)
+        fig.text(0.80, 0.01, f"offset: {last_offset}", fontsize=9)
+        
+        # Center - change
+        fig.text(0.5, 0.01, f"change: {change}", fontsize=9)
+        
+        # Add discharge-specific metadata
+        if parameter == "discharge" and "rating_number" in dfp.columns:
+            q_obs_df = dfp.dropna(subset=["q_observation"]).copy()
+            if not q_obs_df.empty:
+                _add_discharge_metadata(fig, ax1, q_obs_df)
+
+
+    def _add_discharge_metadata(fig, ax1, q_obs_df):
+        """Add discharge-specific metadata to top of plot."""
+        first_idx = q_obs_df['datetime'].idxmin()
+        last_idx = q_obs_df['datetime'].idxmax()
+        
+        # Left side
+        fig.text(0.01, 0.99, f"rating {q_obs_df.loc[first_idx, 'rating_number']}", 
+                transform=ax1.transAxes, fontsize=9, verticalalignment='top')
+        fig.text(0.01, 0.96, f"obs {q_obs_df.loc[first_idx, 'q_observation']}", 
+                transform=ax1.transAxes, fontsize=9, verticalalignment='top')
+        fig.text(0.01, 0.93, f"obs {q_obs_df.loc[first_idx, 'q_offset']} "
+                f"({q_obs_df.loc[first_idx, 'precent_q_change']} %)", 
+                transform=ax1.transAxes, fontsize=9, verticalalignment='top')
+        
+        # Right side
+        fig.text(0.85, 0.99, f"rating {q_obs_df.loc[last_idx, 'rating_number']}", 
+                transform=ax1.transAxes, fontsize=9, verticalalignment='top')
+        fig.text(0.85, 0.96, f"obs {q_obs_df.loc[last_idx, 'q_observation']}", 
+                transform=ax1.transAxes, fontsize=9, verticalalignment='top')
+        fig.text(0.85, 0.93, f"obs {q_obs_df.loc[last_idx, 'q_offset']} "
+                f"({q_obs_df.loc[last_idx, 'precent_q_change']} %)", 
+                transform=ax1.transAxes, fontsize=9, verticalalignment='top')
+    create_hydrograph(df, site, parameter, statistics)

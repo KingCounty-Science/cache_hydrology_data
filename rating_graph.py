@@ -303,18 +303,18 @@ def add_row(new_rating_offset, n_clicks, rating_points, rating,  obs, edited_dat
             df_a = df.loc[df["observation_stage"].notna() & df["parameter_observation"].isna() & df["entered_offset"].isna()].copy()
             df_a = pd.merge_asof(df_a.sort_values("stage_offset").dropna(subset=["stage_offset"]), rating_points.loc[rating_points.index == rating], left_on= "stage_offset", right_on = "stage_rating",direction = "nearest")
             df_a["rating_offset"] = round(df_a["stage_offset"] - df_a['stage_rating'], 2)
-            df_a["rating_precent_change"] = round((abs(df_a["stage_offset"] - df_a['stage_rating'])/df_a["stage_offset"])*100, 2)
+            df_a["rating_precent_change"] = round((abs(df_a["stage_offset"] - df_a['stage_rating'])/df_a["stage_rating"])*100, 2)
            
             # returns stage for given discharge
             df_b = df.loc[df["observation_stage"].isna() & df["parameter_observation"].notna() & df["entered_offset"].isna()].copy()
             df_b = pd.merge_asof(df_b.sort_values("parameter_observation").dropna(subset=["parameter_observation"]), rating_points.loc[rating_points.index == rating], left_on= "parameter_observation", right_on = "discharge_rating")
             df_b["rating_offset"] = round(df_b["stage_offset"] - df_b['stage_rating'], 2)
-            df_b["rating_precent_change"] = round((abs(df_b["stage_offset"] - df_b['stage_rating'])/df_b["stage_offset"])*100, 2)
+            df_b["rating_precent_change"] = round((abs(df_b["stage_offset"] - df_b['stage_rating'])/df_b["stage_rating"])*100, 2)
 
             df_c = df.loc[df["observation_stage"].notna() & df["parameter_observation"].notna()].copy()
             df_c = pd.merge_asof(df_c.sort_values("parameter_observation").dropna(subset=["parameter_observation"]), rating_points.loc[rating_points.index == rating], left_on= "parameter_observation", right_on = "discharge_rating")
             df_c["rating_offset"] = round(df_c["stage_offset"] - df_c['stage_rating'], 2)
-            df_c["rating_precent_change"] = round((abs(df_c["stage_offset"] - df_c['stage_rating'])/df_c["stage_offset"])*100, 2)
+            df_c["rating_precent_change"] = round((abs(df_c["stage_offset"] - df_c['stage_rating'])/df_c["stage_rating"])*100, 2)
 
             # returns discharge for given stage and offset
             df_d = df.loc[df["observation_stage"].notna() & df["parameter_observation"].isna() & df["entered_offset"].notna()].copy()
@@ -322,14 +322,14 @@ def add_row(new_rating_offset, n_clicks, rating_points, rating,  obs, edited_dat
             #df_d["stage_offset"] = df_d["stage_offset"] + df_d["entered_offset"]
             df_d = pd.merge_asof(df_d.sort_values("stage_offset").dropna(subset=["stage_offset"]), rating_points.loc[rating_points.index == rating], left_on= "stage_offset", right_on = "stage_rating",direction = "nearest")
             df_d["rating_offset"] = round(df_d["stage_offset"] - df_d['stage_rating'], 2)
-            df_d["rating_precent_change"] = round((abs(df_d["stage_offset"] - df_d['stage_rating'])/df_d["stage_offset"])*100, 2)
+            df_d["rating_precent_change"] = round((abs(df_d["stage_offset"] - df_d['stage_rating'])/df_d["stage_rating"])*100, 2)
             df_d["parameter_observation"] = df_d["discharge_rating"]
             df_e = df.loc[df["observation_stage"].isna() & df["entered_offset"].notna()].copy()
       
             df = pd.concat([df_a, df_b, df_c, df_d, df_e, nulls_df]).sort_index()
                
             if 'offset_rating' in offset_rating:  # create a 'new rating' that is an offset of the existing rating
-              
+                print("offset rating")
                 if df["observation_stage"].isna().all():
                 #if df[["observation_stage", "parameter_observation"]].isna().all().all():
                 #if df["parameter_observation"].isna().all():
@@ -348,6 +348,7 @@ def add_row(new_rating_offset, n_clicks, rating_points, rating,  obs, edited_dat
                     new_rating["stage_rating"] = (new_rating["stage_rating"]+new_rating["stage_diff"]).round(2)
                     
                     new_rating = new_rating[["stage_rating", "discharge_rating", "gzf"]]
+                
                     #print("new rating corrected stage")
                     #print(new_rating)
                     """ new_rating = pd.merge(new_rating[["stage_rating"]], rating_points, on = "stage_rating", how = "inner")
@@ -356,8 +357,12 @@ def add_row(new_rating_offset, n_clicks, rating_points, rating,  obs, edited_dat
                     print("origional rating")
                     print(rating_points)"""
                     new_rating = new_rating.sort_values(by="stage_rating", ascending=True)
-                   
+                    new_rating = new_rating.drop_duplicates(subset=["stage_rating"], keep = "first")
+                    print("new rating")
+                    print(new_rating)
             edited_data = df.to_dict('records')
+            print("edited data")
+            print(df)
         # generate new rating
         if rating == "new rating" and df[df["observation_stage"].notna()].shape[0] > 1:
             df = pd.DataFrame(edited_data)
@@ -412,18 +417,18 @@ def add_row(new_rating_offset, n_clicks, rating_points, rating,  obs, edited_dat
 
             # slope
             new_rating = new_rating[["stage_rating", "discharge_rating", "gzf"]]
-
+            new_rating.sort_values(by=['stage_rating'], inplace = True)
             #new_rating["stage_rating"] = new_rating["stage_rating"]-gzf # rating not calculated with gzf atm
             new_rating["stage_rating"] = new_rating["stage_rating"].apply(lambda x: x - gzf if pd.notnull(x) and pd.notnull(gzf) else np.nan)
             new_rating["gzf"] = gzf
             new_rating["rating"] = "new rating"
             new_rating.set_index('rating', inplace=True)
-         
+            new_rating = new_rating.sort_values(by="stage_rating", ascending=True)
             #df["stage_offset"] = df["observation_stage"] - gzf
             df["stage_offset"] = df["observation_stage"].apply(lambda x: x - gzf if pd.notnull(x) and pd.notnull(gzf) else np.nan)
             df["gzf"] = gzf
             
-           
+            df = df.sort_values(by="stage_rating", ascending=True)
             edited_data = df.to_dict('records')
             
         
@@ -457,12 +462,13 @@ def save_rating(save_rating_button, delete_selected_rating, new_rating, rating, 
             # rename for sql compatability
             new_rating.reset_index(drop=True, inplace=True)
             new_rating = new_rating.rename(columns={"stage_rating": "WaterLevel", "discharge_rating": "Discharge"})
+            new_rating = new_rating.sort_values(by="WaterLevel", ascending=True)
             new_rating["RatingNumber"] = new_rating_name
             # site sql id
             new_rating["G_ID"] = site_sql_id
             new_rating["Marker"] = range(1, len(new_rating) + 1)
             new_rating = new_rating[["G_ID", "RatingNumber", "WaterLevel", "Discharge", "Marker"]]
-
+            
             from sql_upload import upload_rating, upload_rating_notes, check_if_rating_exists
             # check if rating exists
             print("running upload first test if exists")
@@ -477,13 +483,6 @@ def save_rating(save_rating_button, delete_selected_rating, new_rating, rating, 
                 rating_notes_df = pd.DataFrame([{"Rating_Number": new_rating_name ,"Offset": new_rating_offset, "AutoDTStamp": datetime.today().strftime("%m/%d/%Y"),"Notes": rating_notes}])
                 upload_rating_notes(rating_notes_df)
                 # Get today's date in DD/MM/YYYY format
-            
-
-                # Create a new DataFrame with one row per unique Rating_Number
-                print(new_rating)
-                print(rating_notes_df)
-
-            
                 return True, f"Rating {new_rating_name} saved successfully!"
         else:
             return True, "No new rating to save; please change rating to 'new rating' enter rating points, and name the rating"
@@ -595,7 +594,6 @@ def get_observations(rating_points, rating, slider_range, obs, site_id):
         # reduce observations to range slider range
         low, high = slider_range
         
-        print("silder range", low, " ", high)
         mask = obs.loc[(obs['observation_number'] >= low) & (obs['observation_number'] <= high)].copy()
         
         nulls_mask = mask[mask["observation_stage"].isna()].copy()
@@ -716,7 +714,6 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, sit
         #### if offset rating add this as well
         if 'offset_rating' in offset_rating and new_rating:
             new_rating = pd.read_json(new_rating, orient='split')
-            
             fig.add_trace(go.Scatter(
             x=new_rating[ "discharge_rating"],
             y=(new_rating["stage_rating"] if graph_offset else
@@ -726,7 +723,6 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, sit
             showlegend=True), row=1, col=1)
 
         # Add raw observations
-
         fig.add_trace(go.Scatter(
             x=obs["parameter_observation"],
             y=round(obs["observation_stage"] - gzf, 2),
@@ -750,7 +746,6 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, sit
        
         # Add tbl_addition if it exists
         if not tbl_addition.empty:
-         
             fig.add_trace(go.Scatter(
                 x=tbl_addition["parameter_observation"],
                 y=round(tbl_addition["observation_stage"].astype(float, errors='ignore') - gzf, 2),
@@ -790,16 +785,9 @@ def graph(rating_points, rating, slider_range, obs, tbl_addition, data_grid, sit
             #new_rating = pd.read_json(new_rating, orient='split')
             #rating_off = pd.merge(rating_points, new_rating, on = "stage_rating")
 
-            print("current rating")
-            print(rating_points)
-            print("new rating")
-            print(new_rating)
-
             q_merge = pd.merge(rating_points[["stage_rating", "discharge_rating"]].rename(columns={"stage_rating": "original_stage"}), new_rating, on = "discharge_rating", how = "right")
             q_merge["offset"] = round(q_merge["original_stage"] - q_merge["stage_rating"], 2)
-            print("Q merge")
-            print(q_merge)
-           
+        
            # print(rating_off)
         # Add tbl_addition if it exists
 
