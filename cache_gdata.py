@@ -125,19 +125,19 @@ app.layout = html.Div([
     # select site, paramter and data source
     html.Div([
     html.Div([
-        html.Label('Select Site and Parameter', style={'marginBottom': '5px', 'fontWeight': 'bold'}),
+        html.Label('Select Site and Parameter', style={'marginBottom': '5px', 'fontWeight': 'bold', 'fontSize': '16px'}),
         dcc.Dropdown(
             id='site_selector',
             options=[{'label': i, 'value': i} for i in site_list],
-            style={'width': '100%'}
+            style={'width': '100%', 'fontSize': '14px'}
         )
     ], style={'width': '60%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'}),
     
     html.Div(id='Select_Data_Source_Output', 
-             style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'}),
+             style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px', 'fontSize': '14px'}),
     
     html.Div([
-        html.Label('Select File Import or Database Query', style={'marginBottom': '5px', 'fontWeight': 'bold'}),
+        html.Label('Select Import or Query', style={'marginBottom': '5px', 'fontWeight': 'bold', 'fontSize': '16px'}),
         daq.ToggleSwitch(id='Select_Data_Source', value=False)
     ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'})
     
