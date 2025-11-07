@@ -124,84 +124,93 @@ app.layout = html.Div([
     # Site = site name site_sql_id is site number
     # select site, paramter and data source
     html.Div([
-    html.Div([
-        html.Label('Select Site and Parameter', style={'marginBottom': '5px', 'fontWeight': 'bold', 'fontSize': '16px'}),
-        dcc.Dropdown(
-            id='site_selector',
-            options=[{'label': i, 'value': i} for i in site_list],
-            style={'width': '100%', 'fontSize': '14px'}
-        )
-    ], style={'width': '60%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'}),
+        # site selector
+        html.Div([
+            html.Label('Select Site and Parameter', style={'marginBottom': '5px', 'fontWeight': 'bold', 'fontSize': '16px'}),
+            # select site
+            dcc.Dropdown(
+                id='site_selector',
+                options=[{'label': i, 'value': i} for i in site_list],
+                style={'width': '100%', 'fontSize': '14px'}
+            )
+            ], style={'width': '60%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'}),
+        # select date range
+        html.Div(id='Select_Data_Source_Output', style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px', 'fontSize': '14px'}),
+        # import or queryt
+        html.Div([
+            html.Label('Select Import or Query', style={'marginBottom': '5px', 'fontWeight': 'bold', 'fontSize': '16px'}),
+            daq.ToggleSwitch(id='Select_Data_Source', value=False)
+        ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'})
     
-    html.Div(id='Select_Data_Source_Output', 
-             style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px', 'fontSize': '14px'}),
-    
-    html.Div([
-        html.Label('Select Import or Query', style={'marginBottom': '5px', 'fontWeight': 'bold', 'fontSize': '16px'}),
-        daq.ToggleSwitch(id='Select_Data_Source', value=False)
-    ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '10px'})
-    
-], style={'backgroundColor': '#ccccff', 'border': '2px solid #5e006a', 'padding': '10px', 'display': 'flex', 'alignItems': 'flex-start'}),
-    
-
+    ], style={'backgroundColor': '#ccccff', 'border': '2px solid #5e006a', 'padding': '10px', 'display': 'flex', 'alignItems': 'flex-start'}),
+    # storage
     html.Div(id='site', style={'display': 'none'}),
     html.Div(id='site_sql_id', style={'display': 'none'}),
     html.Div(id='parameter', style={'display': 'none'}),
 
-    # Select a Parameter - get options from callback
-    #html.Div(dcc.Dropdown(id='Parameter', value='0'), style={'display': 'block'}),
-   
-    
+    # data level need to move this
     html.P(id="data_label", children=["data column axis"]), 
     dcc.RadioItems(id='data_axis', options=['data', 'corrected_data'], value='data', inline=True),
     #html.Div(dcc.RangeSlider(0, 20, 1, value=[5, 15], id='select_datetime_by_obs'), id = "select_datetime_by_obs_dev", style={'display': 'block'}),
-    #html.Div(dcc.Dropdown(id='select_datetime_by_obs_a', options=[""], value='0'), dcc.Dropdown(id='select_datetime_by_obs_b', options=[""], value='0'), id = "select_datetime_by_obs_dev", style={'display': 'block'}),  
-   
-    # date time selector
-    # date time selector
-# date time selector
-html.Div([
-    # Left section - Date range inputs (35%)
-    html.Div([
-        html.Label("Select date range", style={'margin-bottom': '15px', 'font-weight': 'bold', 'text-align': 'center', 'display': 'block'}),
-        html.Div([
-            html.Div([
-                html.Label('Start Datetime:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px'}),
-                dbc.Input(id='startDate', type='datetime-local', style={'width': '100%', 'font-size': '14px', 'padding': '6px'})
-            ], style={'flex': '1'}),
-            html.Div([
-                html.Label('End Datetime:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px'}),
-                dbc.Input(id='endDate', type='datetime-local', style={'width': '100%', 'font-size': '14px', 'padding': '6px'})
-            ], style={'flex': '1'})
-        ], style={'display': 'flex', 'gap': '10px'})
-    ], style={'flex': '0 0 35%', 'padding-right': '20px', 'background-color': '#eed8a4'}),
     
-    # Right section - Observation dropdowns (65%)
+    # date time selector
+# date time selector with accordion
+html.Details([
+    html.Summary("Date/Time Selector", style={
+        'font-weight': 'bold',
+        'font-size': '16px',
+        'padding': '10px',
+        'background-color': '#e3a66a',
+        'border-radius': '5px',
+        'cursor': 'pointer',
+        'list-style': 'none',
+        'user-select': 'none'
+    }),
     html.Div([
-        html.Label("Select by observation", style={'margin-bottom': '15px', 'font-weight': 'bold', 'text-align': 'center', 'display': 'block'}),
+        # Left section - Date range inputs (35%)
         html.Div([
+            html.Label("Select date range", style={'margin-bottom': '15px', 'font-weight': 'bold', 'text-align': 'center', 'display': 'block', 'font-size': '16px'}),
             html.Div([
-                html.Label('First observation:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px'}),
-                dcc.Dropdown(id='select_datetime_by_obs_a', options=[{"label": "", "value": ""}], value='')
-            ], style={'flex': '1'}),
+                html.Div([
+                    html.Label('Start Datetime:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px', 'font-size': '15px'}),
+                    dbc.Input(id='startDate', type='datetime-local', style={'width': '100%', 'font-size': '15px', 'padding': '6px'})
+                ], style={'flex': '1'}),
+                html.Div([
+                    html.Label('End Datetime:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px', 'font-size': '15px'}),
+                    dbc.Input(id='endDate', type='datetime-local', style={'width': '100%', 'font-size': '15px', 'padding': '6px'})
+                ], style={'flex': '1'})
+            ], style={'display': 'flex', 'gap': '10px'})
+        ], style={'flex': '0 0 35%', 'padding-right': '20px', 'background-color': '#eed8a4'}),
+        
+        # Right section - Observation dropdowns (65%)
+        html.Div([
+            html.Label("Select by observation", style={'margin-bottom': '15px', 'font-weight': 'bold', 'text-align': 'center', 'display': 'block', 'font-size': '16px'}),
             html.Div([
-                html.Label('Last observation:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px'}),
-                dcc.Dropdown(id='select_datetime_by_obs_b', options=[{"label": "", "value": ""}], value='')
-            ], style={'flex': '1'})
-        ], style={'display': 'flex', 'gap': '10px'})
-    ], style={'flex': '0 0 60%', 'padding-left': '20px', 'background-color': '#eed8a4'})
-    
+                html.Div([
+                    html.Label('First observation:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px', 'font-size': '15px'}),
+                    dcc.Dropdown(id='select_datetime_by_obs_a', options=[{"label": "", "value": ""}], value='', style={'font-size': '15px'})
+                ], style={'flex': '1'}),
+                html.Div([
+                    html.Label('Last observation:', style={'text-align': 'center', 'display': 'block', 'margin-bottom': '5px', 'font-size': '15px'}),
+                    dcc.Dropdown(id='select_datetime_by_obs_b', options=[{"label": "", "value": ""}], value='', style={'font-size': '15px'})
+                ], style={'flex': '1'})
+            ], style={'display': 'flex', 'gap': '10px'})
+        ], style={'flex': '0 0 60%', 'padding-left': '20px', 'background-color': '#eed8a4'})
+        
+    ], style={
+        'display': 'flex',
+        'padding': '15px',
+        'align-items': 'flex-start',
+        'backgroundColor': '#eed8a4'
+    })
 ], id='select_datetime_by_obs_dev', 
+   open=True,  # Set to False if you want it collapsed by default
    style={
-       'display': 'flex',
        'border': '2px solid #e3a66a', 
        'border-radius': '5px', 
-       'padding': '15px',
-       'margin': '10px 0',
-       'align-items': 'flex-start',
-       'backgroundColor': '#eed8a4'
+       'margin': '10px 0'
    }),
-    
+
     dcc.Store(id='query_start_date'),  
     dcc.Store(id='query_end_date'),    
     dcc.Store(id="statistics"),
@@ -219,101 +228,118 @@ html.Div([
     ### File structure
     # Import file structures
     # Wrap the entire structure in a div with an ID
-html.Div([
-    html.Div([
-         # Middle: Upload component (15%)
-        html.Div([
-            dcc.Upload(
-                id='datatable-upload',
-                children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
-                style={
-                    'width': '100%', 
-                    'height': '60px', 
-                    'lineHeight': '60px',
-                    'borderWidth': '1px', 
-                    'borderStyle': 'dashed',
-                    'borderRadius': '5px', 
-                    'textAlign': 'center'
-                })
-        ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
-        # Left side: Radio items and numeric inputs (30%)
-        html.Div([
-            html.Label('Select File Structure', style={'marginBottom': '10px', 'fontWeight': 'bold'}),
-            dcc.RadioItems(
-                id='File_Structure',
-                options=[
-                    {'label': 'onset_U20', 'value': 'onset_U20'},
-                    {'label': 'onset_U24', 'value': 'onset_U24'},
-                    {'label': 'aqua4plus_ct2x', 'value': 'aqua4plus_ct2x'},
-                    {'label': 'csv', 'value': 'csv'}
-                ], 
-                value='onset_U20', 
-                labelStyle={'display': 'inline-block', 'margin-right': '15px'}
-            ),
-            html.Div([
-                html.Div(daq.NumericInput(id='HEADER_ROWS', label='HEADER ROWS', labelPosition='top', value=1), 
-                         style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
-                html.Div(daq.NumericInput(id='FOOTER_ROWS', label='FOOTER ROWS', labelPosition='top', value=0), 
-                         style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
-                html.Div(daq.NumericInput(id='TIMESTAMP_COLUMN', label='TIMESTAMP_COLUMN', labelPosition='top', value=0), 
-                         style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
-                html.Div(daq.NumericInput(id='DATA_COLUMN', label='DATA_COLUMN', labelPosition='top', value=1), 
-                         style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
-            ], style={'marginTop': '10px'})
-        ], style={
-            'width': '30%', 
-            'display': 'inline-block', 
-            'verticalAlign': 'top', 
-            'padding': '15px',
-            'border': '2px solid #cee5d0',
-            'backgroundColor': "#B2E6D1"
-        }),
-        
-       
-        
-        # Barometric correction radio buttons (20%)
-        html.Div([
-    html.Label('Barometric Correction', style={'marginBottom': '5px', 'fontWeight': 'bold', 'display': 'block'}),
-    dcc.RadioItems(
-        id='Barometer_Button',
-        options=[
-            {'label': 'Barometric Correction', 'value': 'Baro'}, 
-            {'label': 'No Correction', 'value': 'No_Baro'}
-        ], 
-        value='Baro')
-], style={
-    'width': '20%',
-    'display': 'inline-block', 
-    'verticalAlign': 'top',
-    'padding': '15px'
-}),
-
-        # Dropdown and Button side by side (20% + remaining space)
-       html.Div([
-    html.Label('   ', style={'marginBottom': '5px', 'fontWeight': 'bold', 'display': 'block'}),
-    dcc.Dropdown(
-        id='available_barometers', 
-        options=[{'label': i, 'value': i} for i in barometer_list], 
-        style={'display': 'none', 'width': '100%'}
-    )
-], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
-
-# Button (10%)
-html.Div([
-    html.Button('Delete Association', id='Delete_Association', n_clicks=0, 
-               style={'display': 'none', 'padding': '10px 20px', 'fontSize': '14px'})
-], style={'width': '10%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
-        
-    ], style={
-        'display': 'flex', 
-        'alignItems': 'flex-start', 
-        'gap': '10px',
-        'border': '2px solid #439473',
+html.Details([
+    html.Summary("File Upload & Configuration", style={
+        'font-weight': 'bold',
+        'font-size': '16px',
         'padding': '10px',
-        'backgroundColor': '#cee5d0'
-    })
-], id='File_Structure_Container'),
+        'background-color': '#439473',
+        'border-radius': '5px',
+        'cursor': 'pointer',
+        'list-style': 'none',
+        'user-select': 'none',
+        'color': 'white'
+    }),
+    html.Div([
+        html.Div([
+             # Middle: Upload component (15%)
+            html.Div([
+                dcc.Upload(
+                    id='datatable-upload',
+                    children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
+                    style={
+                        'width': '100%', 
+                        'height': '60px', 
+                        'lineHeight': '60px',
+                        'borderWidth': '1px', 
+                        'borderStyle': 'dashed',
+                        'borderRadius': '5px', 
+                        'textAlign': 'center'
+                    })
+            ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
+            # Left side: Radio items and numeric inputs (30%)
+            html.Div([
+                html.Label('Select File Structure', style={'marginBottom': '10px', 'fontWeight': 'bold'}),
+                dcc.RadioItems(
+                    id='File_Structure',
+                    options=[
+                        {'label': 'onset_U20', 'value': 'onset_U20'},
+                        {'label': 'onset_U24', 'value': 'onset_U24'},
+                        {'label': 'aqua4plus_ct2x', 'value': 'aqua4plus_ct2x'},
+                        {'label': 'csv', 'value': 'csv'}
+                    ], 
+                    value='onset_U20', 
+                    labelStyle={'display': 'inline-block', 'margin-right': '15px'}
+                ),
+                html.Div([
+                    html.Div(daq.NumericInput(id='HEADER_ROWS', label='HEADER ROWS', labelPosition='top', value=1), 
+                             style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
+                    html.Div(daq.NumericInput(id='FOOTER_ROWS', label='FOOTER ROWS', labelPosition='top', value=0), 
+                             style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
+                    html.Div(daq.NumericInput(id='TIMESTAMP_COLUMN', label='TIMESTAMP_COLUMN', labelPosition='top', value=1), 
+                             style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
+                    html.Div(daq.NumericInput(id='DATA_COLUMN', label='DATA_COLUMN', labelPosition='top', value=1), 
+                             style={'width': '25%', 'display': 'inline-block', 'padding': '5px'}),
+                ], style={'marginTop': '10px'})
+            ], style={
+                'width': '30%', 
+                'display': 'inline-block', 
+                'verticalAlign': 'top', 
+                'padding': '15px',
+                'border': '2px solid #cee5d0',
+                'backgroundColor': "#B2E6D1"
+            }),
+            
+           
+            
+            # Barometric correction radio buttons (20%)
+            html.Div([
+        html.Label('Barometric Correction', style={'marginBottom': '5px', 'fontWeight': 'bold', 'display': 'block'}),
+        dcc.RadioItems(
+            id='Barometer_Button',
+            options=[
+                {'label': 'Barometric Correction', 'value': 'Baro'}, 
+                {'label': 'No Correction', 'value': 'No_Baro'}
+            ], 
+            value='Baro')
+    ], style={
+        'width': '20%',
+        'display': 'inline-block', 
+        'verticalAlign': 'top',
+        'padding': '15px'
+    }),
 
+            # Dropdown and Button side by side (20% + remaining space)
+           html.Div([
+        html.Label('   ', style={'marginBottom': '5px', 'fontWeight': 'bold', 'display': 'block'}),
+        dcc.Dropdown(
+            id='available_barometers', 
+            options=[{'label': i, 'value': i} for i in barometer_list], 
+            style={'display': 'none', 'width': '100%'}
+        )
+    ], style={'width': '20%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
+
+    # Button (10%)
+    html.Div([
+        html.Button('Delete Association', id='Delete_Association', n_clicks=0, 
+                   style={'display': 'none', 'padding': '10px 20px', 'fontSize': '14px'})
+    ], style={'width': '10%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
+            
+        ], style={
+            'display': 'flex', 
+            'alignItems': 'flex-start', 
+            'gap': '10px',
+            'padding': '10px',
+            'backgroundColor': '#cee5d0'
+        })
+    ])
+], id='File_Structure_Container',
+   open=True,  # Set to False if you want it collapsed by default
+   style={
+       'border': '2px solid #439473',
+       'borderRadius': '5px',
+       'margin': '10px 0'
+   }),
 
     # date time picker not native to dash see https://community.plotly.com/t/dash-timepicker/6541/10
     
@@ -341,281 +367,334 @@ html.Div([
 
     # ### data dables
     html.Div([
+       html.Details([
+    html.Summary("Data Table", style={
+        'font-weight': 'bold',
+        'font-size': '16px',
+        'padding': '10px',
+        'background-color': '#984EA3',
+        'border-radius': '5px',
+        'cursor': 'pointer',
+        'list-style': 'none',
+        'user-select': 'none',
+        'color': 'white'
+    }),
+    # data table div
+    html.Div([
+        # data data table
+        html.Div(dash_table.DataTable(
+            id="corrected_data_datatable", 
+            editable=True, 
+            sort_action="native", 
+            sort_mode="multi", 
+            fixed_rows={'headers': True}, 
+            row_deletable=False,
+            page_action='none', 
+            style_table={'height': 'calc(100vh - 250px)', 'overflowY': 'auto'}, 
+            virtualization=True, 
+            fill_width=False, 
+            filter_action='native',
+            style_data={
+                'width': '200px', 
+                'maxWidth': '200px',
+                'fontSize': '14px',
+                'fontFamily': 'Arial, sans-serif'
+            },
+            style_header={
+                'textAlign': 'center',
+                'fontSize': '15px',
+                'fontWeight': 'bold'},
+            style_cell={'fontSize': '14px'},
+            # data table style
+            style_data_conditional=[
+                {'if': {'state': 'selected'},'backgroundColor': '#FFDDC1',  'color': 'black'},
+                {'if': {'column_id': 'c_discharge',},'backgroundColor': r'rgba(152, 78, 163, 0.3)', },
+                {'if': {'column_id': 'c_stage',},'backgroundColor': r'rgba(152, 78, 163, 0.3)', },
+                {'if': {'column_id': 'c_water_level',},'backgroundColor': r'rgba(152, 78, 163, 0.3)',},
+                {'if': {'column_id': 'c_water_temperature',},'backgroundColor': r'rgba(152, 78, 163, 0.3)',},
+                {'if': {'column_id': 'datetime'}, 'width': '120px', 'maxWidth': '120px', 'minWidth': '120px', 'textAlign': 'center'},
+                {'if': {'column_id': 'data'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'corrected_data'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'discharge'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'observation_stage'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'c_water_level'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'offset'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'estimate'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'warning'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'comments'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'c_stage'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'c_discharge'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'observation_number'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'q_observation'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'q_offset'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'precent_q_change'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'rating_number'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+            ],
+        ))
+    ], style={'padding': '10px'})
+], 
+open=True,
+style={
+    'border': '2px solid #984EA3',
+    'borderRadius': '5px',
+    'margin': '10px 0',
+    'flex': '60%', 
+    'width': '60%'
+}),
+        
+        html.Details([
+    html.Summary("Field Observations", style={
+        'font-weight': 'bold',
+        'font-size': '16px',
+        'padding': '10px',
+        'background-color': '#4A90E2',
+        'border-radius': '5px',
+        'cursor': 'pointer',
+        'list-style': 'none',
+        'user-select': 'none',
+        'color': 'white'
+    }),
+    html.Div([
+        dash_table.DataTable(
+            id='observations_datatable', 
+            columns=[], 
+            data=[], 
+            editable=True, 
+            fixed_rows={'headers': True}, 
+            row_deletable=True,
+            row_selectable='multi',
+            style_table={
+                'height': 'calc(100vh - 350px)',
+                'overflowY': 'auto',
+            },
+            style_data={
+                'fontSize': '14px',
+                'fontFamily': 'Arial, sans-serif'
+            },
+            style_header={
+                'textAlign': 'center',
+                'fontSize': '15px',
+                'fontWeight': 'bold'
+            },
+            style_cell={
+                'fontSize': '14px'
+            },
+            style_data_conditional=[
+                {'if': {'column_id': 'datetime'}, 'width': '120px', 'maxWidth': '120px', 'minWidth': '120px', 'textAlign': 'center'},
+                {'if': {'column_id': 'observation_stage'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'comments'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'q_observation'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'observation_number'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+            ],
+            virtualization=True,
+        ),
+        
         html.Div([
-            html.Div(dash_table.DataTable(
-                id="corrected_data_datatable", editable=True, sort_action="native", sort_mode="multi", fixed_rows={'headers': True}, row_deletable=False,
-               
-                page_action='none', style_table={'height': '300px', 'overflowY': 'auto'}, virtualization=True, fill_width=False, filter_action='native',
-                style_data={'width': '200px', 'maxWidth': '200px'}, #, 'minWidth': '100px'
-                #style_cell_conditional=[{'if': {'column_id': 'data'}, 'width': '80px', 'maxWidth': '80px', 'minWidth': '60px'},],
-                style_data_conditional=[
-                    # Highlight selected cell
-                    {'if': {'state': 'selected'},'backgroundColor': '#FFDDC1',  'color': 'black'},# Color for active cell  # 'active'
-                    {'if': {'column_id': 'c_discharge',},'backgroundColor': r'rgba(152, 78, 163, 0.3)', }, # 0.3 is more transparent then 0.7
-                    {'if': {'column_id': 'c_stage',},'backgroundColor': r'rgba(152, 78, 163, 0.3)', }, # 0.3 is more transparent then 0.7
-                    {'if': {'column_id': 'c_water_level',},'backgroundColor': r'rgba(152, 78, 163, 0.3)',},# 0.3 is more transparent then 0.7
-                    {'if': {'column_id': 'c_water_temperature',},'backgroundColor': r'rgba(152, 78, 163, 0.3)',},# 0.3 is more transparent then 0.7
-                    {'if': {'column_id': 'datetime'}, 'width': '120px', 'maxWidth': '120px', 'minWidth': '120px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'data'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'corrected_data'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'discharge'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'observation_stage'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'c_water_level'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'offset'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'estimate'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'warning'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'comments'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'c_stage'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'c_discharge'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'observation_number'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'q_observation'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'q_offset'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'precent_q_change'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'rating_number'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                ],style_header={'textAlign': 'center'},
-
-        ),),
-        #], style={'width': '80%', 'display': 'inline-block'}),
-        ], style={'flex': '60%', 'width': '60%'}),
+            html.Button('add row', id='add_row_button_a', n_clicks=0, 
+                       style={'fontSize': '14px', 'padding': '8px 12px', 'marginRight': '10px'}),
+            html.Button('refresh', id='refresh_button_a', n_clicks=0,
+                       style={'fontSize': '14px', 'padding': '8px 12px', 'marginRight': '10px'}),
+            html.Label("Show observation range", style={'fontSize': '14px', 'marginRight': '10px'}),
+            daq.ToggleSwitch(id='show_inrange_observations', value=True)
+        ], style={'marginTop': '15px', 'display': 'flex', 'alignItems': 'center', 'gap': '10px'})
         
-        
-        html.Div([
-                dash_table.DataTable(
-                    id='observations_datatable', columns=[], data=[], editable=True, fixed_rows={'headers': True}, row_deletable=True,
-                    row_selectable='multi',  # Optionally enable row selection
-                    style_table={
-                        'height': '600px',  # Fix the height of the table container
-                        'overflowY': 'auto',  # Add scrolling for overflow content
-                    },
-                    style_data_conditional=[
-                    {'if': {'column_id': 'datetime'}, 'width': '120px', 'maxWidth': '120px', 'minWidth': '120px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'observation_stage'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'comments'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'q_observation'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    {'if': {'column_id': 'observation_number'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
-                    #style_cell={
-                    #    'minWidth': '150px', 'width': '150px', 'maxWidth': '150px',  # Example column width adjustments
-                    #    'overflow': 'hidden',
-                    #    'textOverflow': 'ellipsis',
-                    ],
-                    style_header={'textAlign': 'center'},
-                    virtualization=True,),  # Improves performance for large datasets
-        
-            
-            html.Button('add row', id='add_row_button_a', n_clicks=0),
-            html.Button('refresh', id='refresh_button_a', n_clicks=0),
-            html.Label("how observation range"),
-            daq.ToggleSwitch(id='show_inrange_observations', value = True)
-
-
-        ], style={
-            'width': '35%',  # Limit width to 25% of the screen
-            'height': '100%',  # Ensure it takes up available height
-            'overflow': 'auto',  # Enable scrolling if content overflows
-            'display': 'inline-block'  # Prevent div from taking up the entire row
+    ], style={'padding': '10px'})
+], 
+open=True,
+style={
+    'border': '2px solid #4A90E2',
+    'borderRadius': '5px',
+    'margin': '10px 0',
+    'width': '35%',
+    'display': 'inline-block',
+    'verticalAlign': 'top'
+}),
+# settings and controls div
+    html.Details([
+        html.Summary("Settings & Controls", style={
+            'font-weight': 'bold',
+            'font-size': '16px',
+            'padding': '8px 10px',
+            'background-color': '#FF8C42',
+            'border-radius': '5px',
+            'cursor': 'pointer',
+            'list-style': 'none',
+            'user-select': 'none',
+            'color': 'white'
         }),
-        
-        
+    html.Div([
         html.Div([
+            dcc.Dropdown(id='comparison_sites',options=[{'label': i, 'value': i} for i in comparison_list], multi=True),]),
+            #dcc.Dropdown(id='comparison_parameter', value='0'),
+            dcc.Checklist(id="checklist", options=['comparison_site'],value=['comparison_site'],inline=True),
             html.Div([
-                dcc.Dropdown(id='comparison_sites',options=[{'label': i, 'value': i} for i in comparison_list], multi=True),]),
-                #dcc.Dropdown(id='comparison_parameter', value='0'),
-                dcc.Checklist(id="checklist", options=['comparison_site'],value=['comparison_site'],inline=True),
-                html.Div([
-                            html.Label("primer hours before/after"),
-                            daq.NumericInput(id = "primer_hours", label='',labelPosition='',value=2,),]),
-                # realtime update info
-                html.Div([daq.ToggleSwitch(id='realtime_update'), html.Button(id="run_job", children="Run Job!"), html.Div(id='realtime_update_info'),], style={'display': 'flex', 'flex-direction': 'row'}), #dynamic default so sql query doesnt automatically correct for obs
-                html.Div([daq.ToggleSwitch(id='apply_discharge_offset', value=False), html.Div(id='offset_label') ], id='offset_container', style={'display': 'none', 'marginLeft': '1rem'}),
-                html.P(id="paragraph_id", children=["Button not clicked"]),
-            # interpolation and graphing
-            html.Div([
-                
-                html.Button("data managment", id="open-modal-button"),
-                    dbc.Modal([dbc.ModalHeader("data managment"),
-                    dbc.ModalBody([
-
-                        html.Label('for import sites 1. Resampel to interval, 2. Run expansion, 3. Resample to 15 min, 4. Fill'),
-                        html.Div([html.Label('expand to observations: select start and/or end observation to fill to, will need to run filler'), html.Button('run expansion', id='to_observations_button'),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            
-
-
-                        html.Div(id="data_interval", children="data_interval")]),
-                         
-                                dcc.RangeSlider(id='interval', min=0, max=5, step=None, marks={0: '1 min', 1: '5 min', 2: '15 min', 3: '30 min', 4: 'hourly', 5: 'daily'}, value=[2]),
-                                html.Button('resample', id='resample_button'),                
-                       
-                        html.Div([
-                            html.Button('calculate_average', id='calculate_average_button'), 
-                            html.Button('interpolate', id='interpolate_button'), 
-                            html.Button('accept interpolation', id='accept_interpolation_button'), 
-                        ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-
-                        html.Div([html.Label("basic forward and backward fill"),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center', 'margin-top': '20px'}),
-                        html.Div([
-                            html.Div([html.Label('limit consecutive na to fill'), dcc.Dropdown(id='fill_limit',options=[{'label': 'no limit', 'value': 'no limit'},{'label': 'limit', 'value': 'limit'}], value='no_limit')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            html.Div([html.Label('enter number on consecutive na to fill'), daq.NumericInput(id='fill_limit_number', value=4,)], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            #html.Div(daq.NumericInput(id='HEADER_ROWS', label='HEADER ROWS', labelPosition='top', value=1,), style={'width': '10%', 'display': 'inline-block'}),
-                            html.Div([html.Label('limit area'), dcc.Dropdown(id='fill_limit_area',options=[{'label': 'inside (na surrounded by data)', 'value': 'inside'},{'label': 'outside (na outside data)', 'value': 'outside'}], value='outside')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            html.Button('basic forward fill', id='basic_forward_fill'), 
-                            html.Button('basic backward fill', id='basic_backward_fill'), 
-
-
-                        ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                        html.Div([
-                            html.Div([html.Label('select interoplation method'), dcc.Dropdown(id='set_method',options=[{'label': 'pad', 'value': 'pad'},{'label': 'linear', 'value': 'linear'},], value='linear')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            html.Div([html.Label('limit consecutive na to fill'), dcc.Dropdown(id='set_limit',options=[{'label': 'no limit', 'value': 'no limit'},{'label': 'limit', 'value': 'limit'}], value='limit')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            html.Div([html.Label('enter number on consecutive na to fill'), daq.NumericInput(id='limit_number', value=4,)], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            #html.Div(daq.NumericInput(id='HEADER_ROWS', label='HEADER ROWS', labelPosition='top', value=1,), style={'width': '10%', 'display': 'inline-block'}),
-                            
-                            html.Div([html.Label('limit direction'), dcc.Dropdown(id='limit_direction',options=[{'label': 'forward', 'value': 'forward'},{'label': 'backward', 'value': 'backward'},{'label': 'both', 'value': 'both'}], value='both')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            html.Div([html.Label('limit area'), dcc.Dropdown(id='limit_area',options=[{'label': 'inside (na surrounded by data)', 'value': 'inside'},{'label': 'outside (na outside data)', 'value': 'outside'}], value='inside')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                            html.Button('fill missing data', id='fill_missing_data'), 
-
-
-                        ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-
-                         html.Div([
-                            html.Label('run interpolation on data column', style={'margin-right': '10px'}),
-                            dcc.Checklist(
-                                id='interp-data', 
-                                options=[{'label': 'Interpolate data', 'value': 'on'}], 
-                                value=[],  # Empty = off, ['on'] = on
-                                style={'display': 'inline-block'}
-                                ),
-                           
-                            html.Label('run interpolation on corrected data column', style={'margin-right': '10px'}),
-                            dcc.Checklist(
-                                id='interp-corrected-data', 
-                                options=[{'label': 'Interpolate Corrected Data', 'value': 'on'}], 
-                                value=[],  # Empty = off, ['on'] = on
-                                style={'display': 'inline-block'}
-                                )
-                            ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-
+                        html.Label("primer hours before/after"),
+                        daq.NumericInput(id = "primer_hours", label='',labelPosition='',value=2,),]),
+            # realtime update info
+            html.Div([daq.ToggleSwitch(id='realtime_update'), html.Button(id="run_job", children="Run Job!"), html.Div(id='realtime_update_info'),], style={'display': 'flex', 'flex-direction': 'row'}), #dynamic default so sql query doesnt automatically correct for obs
+            html.Div([daq.ToggleSwitch(id='apply_discharge_offset', value=False), html.Div(id='offset_label') ], id='offset_container', style={'display': 'none', 'marginLeft': '1rem'}),
+            html.P(id="paragraph_id", children=["Button not clicked"]),
+        # interpolation and graphing
+        html.Div([
+            
+            html.Button("data managment", id="open-modal-button"),
+                dbc.Modal([dbc.ModalHeader("data managment"),
+                dbc.ModalBody([
+                    html.Label('for import sites 1. Resampel to interval, 2. Run expansion, 3. Resample to 15 min, 4. Fill'),
+                    html.Div([html.Label('expand to observations: select start and/or end observation to fill to, will need to run filler'), html.Button('run expansion', id='to_observations_button'),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                    html.Div(id="data_interval", children="data_interval")]),
+                            dcc.RangeSlider(id='interval', min=0, max=5, step=None, marks={0: '1 min', 1: '5 min', 2: '15 min', 3: '30 min', 4: 'hourly', 5: 'daily'}, value=[2]),
+                            html.Button('resample', id='resample_button'),                
+                    # interpolation
+                    html.Div([
+                        html.Button('calculate_average', id='calculate_average_button'), 
+                        html.Button('interpolate', id='interpolate_button'), 
+                        html.Button('accept interpolation', id='accept_interpolation_button'), 
+                    ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                    # fill values
+                    html.Div([html.Label("basic forward and backward fill"),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center', 'margin-top': '20px'}),
+                    html.Div([
+                        html.Div([html.Label('limit consecutive na to fill'), dcc.Dropdown(id='fill_limit',options=[{'label': 'no limit', 'value': 'no limit'},{'label': 'limit', 'value': 'limit'}], value='no_limit')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                        html.Div([html.Label('enter number on consecutive na to fill'), daq.NumericInput(id='fill_limit_number', value=4,)], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                        #html.Div(daq.NumericInput(id='HEADER_ROWS', label='HEADER ROWS', labelPosition='top', value=1,), style={'width': '10%', 'display': 'inline-block'}),
+                        html.Div([html.Label('limit area'), dcc.Dropdown(id='fill_limit_area',options=[{'label': 'inside (na surrounded by data)', 'value': 'inside'},{'label': 'outside (na outside data)', 'value': 'outside'}], value='outside')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                        html.Button('basic forward fill', id='basic_forward_fill'), 
+                        html.Button('basic backward fill', id='basic_backward_fill'), 
+                    ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                    html.Div([
+                        html.Div([html.Label('select interoplation method'), dcc.Dropdown(id='set_method',options=[{'label': 'pad', 'value': 'pad'},{'label': 'linear', 'value': 'linear'},], value='linear')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                        html.Div([html.Label('limit consecutive na to fill'), dcc.Dropdown(id='set_limit',options=[{'label': 'no limit', 'value': 'no limit'},{'label': 'limit', 'value': 'limit'}], value='limit')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                        html.Div([html.Label('enter number on consecutive na to fill'), daq.NumericInput(id='limit_number', value=4,)], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                        #html.Div(daq.NumericInput(id='HEADER_ROWS', label='HEADER ROWS', labelPosition='top', value=1,), style={'width': '10%', 'display': 'inline-block'}),
                         
-                       
-                        html.Div([html.Label("Interpolation Functions"),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center', 'margin-top': '20px'}),
-                        
+                        html.Div([html.Label('limit direction'), dcc.Dropdown(id='limit_direction',options=[{'label': 'forward', 'value': 'forward'},{'label': 'backward', 'value': 'backward'},{'label': 'both', 'value': 'both'}], value='both')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                        html.Div([html.Label('limit area'), dcc.Dropdown(id='limit_area',options=[{'label': 'inside (na surrounded by data)', 'value': 'inside'},{'label': 'outside (na outside data)', 'value': 'outside'}], value='inside')], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                        html.Button('fill missing data', id='fill_missing_data'), 
+
+
+                    ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+
+                    html.Div([
+                        html.Label('run interpolation on data column', style={'margin-right': '10px'}),
+                        dcc.Checklist(
+                            id='interp-data', 
+                            options=[{'label': 'Interpolate data', 'value': 'on'}], 
+                            value=[],  # Empty = off, ['on'] = on
+                            style={'display': 'inline-block'}
+                            ),
+                        html.Label('run interpolation on corrected data column', style={'margin-right': '10px'}),
+                        dcc.Checklist(
+                            id='interp-corrected-data', 
+                            options=[{'label': 'Interpolate Corrected Data', 'value': 'on'}], 
+                            value=[],  # Empty = off, ['on'] = on
+                            style={'display': 'inline-block'}
+                            )
+                        ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
+                    html.Div([html.Label("Interpolation Functions"),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center', 'margin-top': '20px'}),
+                    # dry indicator
+                    html.Div([
                         html.Div([
+                            html.Label("Apply dry/non-detect indicator"),
                             html.Div([
-                                html.Label("Apply dry/non-detect indicator"),
+                                # Left column - text inputs
                                 html.Div([
-                                    # Left column - text inputs
                                     html.Div([
-                                        html.Div([
-                                            html.Label("start dry indicator range"),
-                                            dcc.Input(
-                                                id='start-dry-indicator-range',
-                                                type='text',
-                                                placeholder='YYYY-MM-DD HH:MM:SS',
-                                                value='2024-01-01 00:00:00',
-                                                style={'width': '200px'}
-                                            )
-                                        ], style={'margin': '10px'}),
-                                        
-                                        html.Div([
-                                            html.Label("end dry indicator range"),
-                                            dcc.Input(
-                                                id='end-dry-indicator-range',
-                                                type='text',
-                                                placeholder='YYYY-MM-DD HH:MM:SS',
-                                                value='2024-01-01 23:59:59',
-                                                style={'width': '200px'}
-                                            )
-                                        ], style={'margin': '10px'}),
-                                    ], style={'flex': '1', 'padding-right': '20px'}),
-                                    
-                                    # Right column - buttons
+                                        html.Label("start dry indicator range"),
+                                        dcc.Input(
+                                            id='start-dry-indicator-range',
+                                            type='text',
+                                            placeholder='YYYY-MM-DD HH:MM:SS',
+                                            value='2024-01-01 00:00:00',
+                                            style={'width': '200px'}
+                                        )
+                                    ], style={'margin': '10px'}),
                                     html.Div([
-                                        html.Button('set dry indicator range', id='set-dry-indicator', 
-                                                style={'margin': '5px', 'display': 'block'}),
-                                        html.Button('clear all dry indicators', id='clear-dry-indicator',
-                                                style={'margin': '5px', 'display': 'block'}),
-                                    ], style={'flex': '1', 'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center'}),
-                                    
-                                ], style={'display': 'flex', 'align-items': 'flex-start'}),
+                                        html.Label("end dry indicator range"),
+                                        dcc.Input(
+                                            id='end-dry-indicator-range',
+                                            type='text',
+                                            placeholder='YYYY-MM-DD HH:MM:SS',
+                                            value='2024-01-01 23:59:59',
+                                            style={'width': '200px'}
+                                        )
+                                    ], style={'margin': '10px'}),
+                                ], style={'flex': '1', 'padding-right': '20px'}),
+                                # Right column - buttons
+                                html.Div([
+                                    html.Button('set dry indicator range', id='set-dry-indicator', 
+                                            style={'margin': '5px', 'display': 'block'}),
+                                    html.Button('clear all dry indicators', id='clear-dry-indicator',
+                                            style={'margin': '5px', 'display': 'block'}),
+                                ], style={'flex': '1', 'display': 'flex', 'flex-direction': 'column', 'justify-content': 'center'}),
+                            ], style={'display': 'flex', 'align-items': 'flex-start'}),
+                        ], style={'border': '1px solid #ccc','padding': '15px','margin': '10px','border-radius': '4px' }),
+                        # dry threshold
+                        html.Div([
+                                html.Label("apply dry threshold to raw data"),
+                                dcc.Input(
+                                    id='dry-threshold-raw-input',
+                                    type='number',
+                                    step='any',
+                                    value=0,
+                                    style={'width': '200px'}
+                                ),
+                                html.Button('apply dry threshold raw', id='apply-dry-threshold-raw'),
                             ], style={
-                                'border': '1px solid #ccc',
-                                'padding': '15px',
                                 'margin': '10px',
-                                'border-radius': '4px'
+                                'border': '1px solid #ccc',  # thin border
+                                'padding': '10px',           # add some padding inside the border
+                                'border-radius': '4px'       # optional: rounded corners
                             }),
-                            html.Div([
-                                    html.Label("apply dry threshold to raw data"),
-                                    dcc.Input(
-                                        id='dry-threshold-raw-input',
-                                        type='number',
-                                        step='any',
-                                        value=0,
-                                        style={'width': '200px'}
-                                    ),
-                                    html.Button('apply dry threshold raw', id='apply-dry-threshold-raw'),
-                                ], style={
-                                    'margin': '10px',
-                                    'border': '1px solid #ccc',  # thin border
-                                    'padding': '10px',           # add some padding inside the border
-                                    'border-radius': '4px'       # optional: rounded corners
-                                }),
-                            html.Div([
-                                    html.Label("apply dry threshold to corrected data"),
-                                    dcc.Input(
-                                        id='dry-threshold-corrected-data-input',
-                                        type='number',
-                                        step='any',
-                                        value=0,
-                                        style={'width': '200px'}
-                                    ),
-                                    html.Button('apply dry threshold corrected data', id='apply-dry-threshold-corrected-data'),  
-                                ], style={
-                                    'margin': '10px',
-                                    'border': '1px solid #ccc',  # thin border
-                                    'padding': '10px',           # add some padding inside the border
-                                    'border-radius': '4px'       # optional: rounded corners
-                                }),
-                            
-                           
-                            
-                                ], style={'display': 'flex'}),
-                        
-                        dbc.ModalFooter(dbc.Button("close", id="close-modal-button", className="ml-auto")),], id="modal", size="xl",),
-                # graphing options
-                html.Button("graphing options", id="open-graphing-options-button"),
-                    dbc.Modal([
-                        dbc.ModalHeader("select data axis"),
-                        dbc.ModalBody([
-                            html.Div([
-                                html.Label("Realtime Updating Graph"),
-                                daq.ToggleSwitch(id='graph_realtime_update', value=True),], style={'display': 'flex'}),
+                        html.Div([
+                                html.Label("apply dry threshold to corrected data"),
+                                dcc.Input(
+                                    id='dry-threshold-corrected-data-input',
+                                    type='number',
+                                    step='any',
+                                    value=0,
+                                    style={'width': '200px'}
+                                ),
+                                html.Button('apply dry threshold corrected data', id='apply-dry-threshold-corrected-data'),  
+                            ], style={
+                                'margin': '10px',
+                                'border': '1px solid #ccc',  # thin border
+                                'padding': '10px',           # add some padding inside the border
+                                'border-radius': '4px'       # optional: rounded corners
+                            }),
+                            ], style={'display': 'flex'}),
+                    dbc.ModalFooter(dbc.Button("close", id="close-modal-button", className="ml-auto")),], id="modal", size="xl",),
+            # graphing options
+            html.Button("graphing options", id="open-graphing-options-button"),
+                dbc.Modal([
+                    dbc.ModalHeader("select data axis"),
+                    dbc.ModalBody([
+                        html.Div([
+                            html.Label("Realtime Updating Graph"),
+                            daq.ToggleSwitch(id='graph_realtime_update', value=True),], style={'display': 'flex'}),
                             dcc.Checklist(options=['percentile_05', 'percentile_05_q'], id = "display_statistics", value = []), #value=['Montreal']
-                           
-                            #html.P(id="corrected_data_label", children=["corrected data column axis"]),
-                            #dcc.RadioItems(id='corrected_data_axis', options=['primary', 'secondary', 'none'], value='secondary', inline=True),
-                            #html.P(id="derived_data_label", children=["derived data column axis"]),
-                            #dcc.RadioItems(id='derived_data_axis', options=['primary', 'secondary', 'none'], value='secondary', inline=True),
-                            #html.P(id="observation_label", children=["observation column axis"]),
-                            #dcc.Checklist(id='observation_axis', options=['show', 'none'], value='secondary', inline=True),
-                            #html.P(id="comparison_label", children=["comparison column axis"]),
-                            #dcc.RadioItems(id='comparison_axis', options=['primary', 'secondary', 'none'], value='primary', inline=True),
                             html.Div([
-                                html.Label("normalize data"),
-                                daq.ToggleSwitch(id='normalize_data', value=False),], style={'display': 'flex'}),
-                            daq.NumericInput(id = "primary_min", label='primary min',labelPosition='bottom',value=" ",),
-                            daq.NumericInput(id = "primary_max", label='primary max',labelPosition='bottom',value=" ",),
-                            daq.NumericInput(id = "secondary_min", label='secondary min',labelPosition='bottom',value=" ",),
-                            daq.NumericInput(id = "secondary_max", label='secondary max',labelPosition='bottom',value=" "),
-
+                            html.Label("normalize data"),
+                            daq.ToggleSwitch(id='normalize_data', value=False),], style={'display': 'flex'}),
+                                daq.NumericInput(id = "primary_min", label='primary min',labelPosition='bottom',value=" ",),
+                                daq.NumericInput(id = "primary_max", label='primary max',labelPosition='bottom',value=" ",),
+                                daq.NumericInput(id = "secondary_min", label='secondary min',labelPosition='bottom',value=" ",),
+                                daq.NumericInput(id = "secondary_max", label='secondary max',labelPosition='bottom',value=" "),
                         ]),
-                            dbc.ModalFooter(dbc.Button("close", id="close-graphing-options-button", className="ml-auto")),], id="graphing-options", size="xl",),   
-            ], style={'display': 'flex', 'flex-direction': 'row'}),
-
-
-
-        #], style={'width': '20%', 'display': 'inline-block'}),
-        ], style={'flex': '20%', 'width': '20%'}),
+                        dbc.ModalFooter(dbc.Button("close", id="close-graphing-options-button", className="ml-auto")),], id="graphing-options", size="xl",),   
+        ], style={'display': 'flex', 'flex-direction': 'row'}),
+    ], style={'padding': '10px'})
+], 
+open=False,  # Start collapsed since it's settings
+style={
+    'border': '2px solid #FF8C42',
+    'borderRadius': '5px',
+    'margin': '5px 0',
+    'flex': '20%', 
+    'width': '20%'
+}),
     ], style={'display': 'flex'}),   
    
-   
+## export   
    html.Div([
     html.H3('Upload/Export Data', style={'textAlign': 'center', 'marginBottom': '20px'}),
     html.Div([
