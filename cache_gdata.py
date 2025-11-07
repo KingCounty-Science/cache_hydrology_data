@@ -221,6 +221,21 @@ html.Div([
     # Wrap the entire structure in a div with an ID
 html.Div([
     html.Div([
+         # Middle: Upload component (15%)
+        html.Div([
+            dcc.Upload(
+                id='datatable-upload',
+                children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
+                style={
+                    'width': '100%', 
+                    'height': '60px', 
+                    'lineHeight': '60px',
+                    'borderWidth': '1px', 
+                    'borderStyle': 'dashed',
+                    'borderRadius': '5px', 
+                    'textAlign': 'center'
+                })
+        ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
         # Left side: Radio items and numeric inputs (30%)
         html.Div([
             html.Label('Select File Structure', style={'marginBottom': '10px', 'fontWeight': 'bold'}),
@@ -254,42 +269,28 @@ html.Div([
             'backgroundColor': "#B2E6D1"
         }),
         
-        # Middle: Upload component (15%)
-        html.Div([
-            dcc.Upload(
-                id='datatable-upload',
-                children=html.Div(['Drag and Drop or ', html.A('Select Files')]),
-                style={
-                    'width': '100%', 
-                    'height': '60px', 
-                    'lineHeight': '60px',
-                    'borderWidth': '1px', 
-                    'borderStyle': 'dashed',
-                    'borderRadius': '5px', 
-                    'textAlign': 'center'
-                })
-        ], style={'width': '15%', 'display': 'inline-block', 'verticalAlign': 'top', 'padding': '15px'}),
+       
         
         # Barometric correction radio buttons (20%)
-        html.Div(
-            dcc.RadioItems(
-                id='Barometer_Button',
-                options=[
-                    {'label': 'Barometric Correction', 'value': 'Baro'}, 
-                    {'label': 'No Correction', 'value': 'No_Baro'}
-                ], 
-                value='Baro'),
-            style={
-                'width': '20%',
-                'display': 'inline-block', 
-                'verticalAlign': 'top',
-                'backgroundColor': 'skyblue', 
-                'padding': '15px'
-            }),
+        html.Div([
+    html.Label('Barometric Correction', style={'marginBottom': '5px', 'fontWeight': 'bold', 'display': 'block'}),
+    dcc.RadioItems(
+        id='Barometer_Button',
+        options=[
+            {'label': 'Barometric Correction', 'value': 'Baro'}, 
+            {'label': 'No Correction', 'value': 'No_Baro'}
+        ], 
+        value='Baro')
+], style={
+    'width': '20%',
+    'display': 'inline-block', 
+    'verticalAlign': 'top',
+    'padding': '15px'
+}),
 
         # Dropdown and Button side by side (20% + remaining space)
        html.Div([
-    html.Label('Select a Barometer', style={'marginBottom': '5px', 'fontWeight': 'bold', 'display': 'block'}),
+    html.Label('   ', style={'marginBottom': '5px', 'fontWeight': 'bold', 'display': 'block'}),
     dcc.Dropdown(
         id='available_barometers', 
         options=[{'label': i, 'value': i} for i in barometer_list], 
@@ -615,26 +616,26 @@ html.Div([
     ], style={'display': 'flex'}),   
    
    
-    # html.Br(),
-    html.Div([  # big block
-        html.Button('upload_data', id='upload_data_button', n_clicks=0),
+   html.Div([
+    html.H3('Upload/Export Data', style={'textAlign': 'center', 'marginBottom': '20px'}),
+    html.Div([
+        html.Button('upload_data', id='upload_data_button', n_clicks=0, style={'padding': '10px 20px', 'fontSize': '16px'}),
         html.Div(id='upload_data_children', style={'width': '5%', 'display': 'inline-block'}),
 
-        html.Button('export_data', id='export_data_button', n_clicks=0),
+        html.Button('export_data', id='export_data_button', n_clicks=0, style={'padding': '10px 20px', 'fontSize': '16px', 'marginLeft': '10px'}),
         html.Div(id='export_data_children', style={'width': '5%', 'display': 'inline-block'}),
+        
         html.Div([
-        html.Label('session toggle (when true upload by session)', style={'margin-right': '10px'}),
-        dcc.Checklist(
-            id='session-toggle',
-            options=[{'label': '', 'value': 'on'}],
-            value=['on'],  # Set to true by default
-            style={'display': 'inline-block'}
-        )
-    ], style={'display': 'inline-block', 'margin-left': '20px'}),
-
-        
-        
-    ],style={'display': 'flex', 'flex-direction': 'row'}),
+            html.Label('session toggle (when true upload by session)', style={'marginRight': '10px', 'fontSize': '18px'}),
+            dcc.Checklist(
+                id='session-toggle',
+                options=[{'label': '', 'value': 'on'}],
+                value=['on'],
+                style={'display': 'inline-block'}
+            )
+        ], style={'display': 'inline-block', 'marginLeft': '20px'})
+    ], style={'display': 'flex', 'flexDirection': 'row', 'justifyContent': 'center', 'alignItems': 'center'})
+], style={'backgroundColor':	'#d4be9f', 'padding': '20px', 'width': '100%'})
 
 ])
 
@@ -759,7 +760,7 @@ def barometer_selection(data_source, parameter, barometer_button):
     if parameter:  # if a parameter has been selected
         if data_source is False: # data file upload
             if parameter == "LakeLevel" or parameter == "Piezometer" or parameter == "discharge" or parameter == "lake_level" or parameter == "water_level" or parameter == "groundwater_level":
-                return {'display': 'block'}, {'display': 'inline-block'}, {'display': 'block'},
+                return {'display': 'block'}, {'display': 'block'}, {'display': 'block'},
             else:
                 return {'display': 'none', 'border': 'none'}, {'display': 'none'}, {'display': 'none'},
         elif barometer_button == "No_Baro":
