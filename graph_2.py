@@ -105,7 +105,7 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
     base_parameter_axis = False # water level/stage for discharge
     derived_parameter_axis = False # stage
     comparison_axis = True
-    
+    statistics = pd.read_json(statistics, orient="split")
     if parameter == "FlowLevel" or parameter == "discharge":
         base_parameter = "water_level"
         derived_parameter = "discharge"
@@ -602,6 +602,7 @@ def plot_for_save(df, site_selector_value, site_sql_id, site, parameter, compari
         statistics : dict
             Statistics dict with min/max values
         """
+        statistics = pd.read_json(statistics, orient="split")
         dfp = df.copy()
         end_date = dfp["datetime"].max().date()
         

@@ -684,7 +684,7 @@ style={
         ], style={'display': 'flex', 'flex-direction': 'row'}),
     ], style={'padding': '10px'})
 ], 
-open=False,  # Start collapsed since it's settings
+open=True,  # Start collapsed since it's settings
 style={
     'border': '2px solid #FF8C42',
     'borderRadius': '5px',
@@ -1415,8 +1415,6 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
             data = pd.read_json(import_data, orient="split")
             if data.empty:
                 return dash.no_update
-            print("!!! FORCE RELOAD from import_data !!!")
-            print(data.head())
         except Exception as e:
             print(f"Error reading import_data: {e}")
             return dash.no_update
@@ -1425,8 +1423,6 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
             data = pd.read_json(import_data, orient="split")
             if data.empty:
                 return dash.no_update
-            print("initial import data")
-            print(data.head())
         except Exception as e:
             print(f"Error reading import_data: {e}")
             return dash.no_update
@@ -1527,11 +1523,6 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
     data = column_managment(data)
     # Reformat the datetime for Dash graph display
     data["datetime"] = data["datetime"].dt.strftime('%Y-%m-%d %H:%M')
-    
-    print("export data - about to return to datatable")
-    print(f"Rows: {len(data)}, Columns: {list(data.columns)}")
-    print(data.head())
-    
     # Convert to records
     data_records = data.to_dict('records')
     columns = [{"name": i, "id": i} for i in data.columns]
