@@ -487,6 +487,7 @@ style={
                 {'if': {'column_id': 'observation_number'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
             ],
             virtualization=True,
+            
         ),
         
         html.Div([
@@ -1428,7 +1429,6 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
             return dash.no_update
     elif rows and "datetime" in pd.DataFrame(rows).columns:
         data = pd.DataFrame(rows)
-        print("using existing rows data")
     else:
         print("No valid data source, returning no_update")
         return dash.no_update
@@ -1442,6 +1442,7 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         observations = pd.DataFrame(obs_rows)
         observations = reformat_data(observations)
         observations = observations.dropna(subset=['datetime'])
+        #print("data_interval", data_interval)
         data = pd.merge_asof(data.sort_values('datetime'), observations.sort_values('datetime'), on='datetime', tolerance=pd.Timedelta(f"{int(data_interval)/2}m"), direction="nearest")
        
     data = reformat_data(data)

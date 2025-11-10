@@ -100,9 +100,13 @@ def reformat_data(df):
         df['observation'] = df['observation'].astype(float, errors="ignore")
         df['observation'] = df['observation'].replace("", np.nan)
       
+   
     if 'observation_stage' in df.columns:
-        df['observation_stage'] = df['observation_stage'].astype(float, errors="ignore")
+        # Replace empty strings with NaN first
         df['observation_stage'] = df['observation_stage'].replace("", np.nan)
+        # Convert to float, coercing errors to NaN
+        df['observation_stage'] = pd.to_numeric(df['observation_stage'], errors='coerce')
+        # Round to 2 decimal places
         df['observation_stage'] = df['observation_stage'].round(2)
         #df.loc[~pd.isna(df['observation_stage']), 'observation_stage']\
         #df['observation_stage'] = df['observation_stage'].round("", np.nan)

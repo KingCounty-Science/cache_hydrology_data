@@ -28,10 +28,8 @@ def discharge_calculation(df_q, ratings_value, site_sql_id, apply_discharge_offs
         # fill q offset
         df["q_offset"] = df["q_offset"].interpolate(method='linear', limit_direction='both')
         if apply_discharge_offset is True: # aka disabled is false apply individual offset for discharge
-            print("value is True apply discharge offsets for individual measurements")
             df["adjusted_stage"] = ((df["corrected_data"]-gzf)-df["q_offset"]).round(2)
         if apply_discharge_offset is False:  # dont correct for difference but you still want to show it on like the graph
-              print("value is false do not apply individual offsets")
               df["adjusted_stage"] = ((df["corrected_data"]-gzf)).round(2)
         #df["adjusted_stage"] = df["adjusted_stage"]+gzf
         #rating_points["water_level_rating"] = rating_points["water_level_rating"]+gzf
