@@ -141,14 +141,16 @@ def workup_transactions(observation, site_sql_id, site, parameter):
 # observation dataframe
     d = {'G_ID': [site_sql_id], 
         'WorkUp_Date': date.today(),
-        "WorkedUp_By": " ",
-        'WorkUp_notes': [f"{site}_discharge_{observation['datetime'].iloc[-1]}.csv"],
+        "WorkedUp_By": "23",
+        'WorkUp_notes': [f"{site}_{parameter}_{observation['datetime'].iloc[-1]}.csv"],
         'Start_Time': observation['datetime'].iloc[0],
         'End_Time': observation['datetime'].iloc[-1],
         'Parameter': parameter_number
         
         }
     df = pd.DataFrame(data=d)
+    print("workup notes for upload")
+    print(df)
     df.to_sql(observation_table, sql_engine, method=None, if_exists='append', index=False)
 
     cur.close()
@@ -169,6 +171,10 @@ def workup_notes_main(notes_df, parameter, site_sql_id, site):
         #q_table = "tblFlowWorkupRatingTracker"
     elif parameter == "LakeLevel" or parameter == "Piezometer" or parameter == "water_level" or parameter == "lake_level" or parameter == "groundwater_level":
         observation = notes_df.dropna(subset=['observation_stage'])
+        print("notes df")
+        print(notes_df)
+        print("observations")
+        print(observation)
         workup_transactions(observation, site_sql_id, site, parameter)
     else:
         observation = notes_df.dropna(subset=['parameter_observation'])

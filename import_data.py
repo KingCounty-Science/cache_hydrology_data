@@ -7,6 +7,8 @@ import pyodbc
 import configparser
 import pandas as pd
 from datetime import date
+import numpy as np
+
 
 from plotly.subplots import make_subplots
 from sqlalchemy import create_engine
@@ -172,14 +174,61 @@ def sql_statistics(parameter, site_sql_id):
         except:
               percentile_95 = 0
 
-
+        # Get both min and max in one query stage/parameter
+        if parameter != "discharge":
+                try:
+                        select_statement = f"""SELECT 
+                                                MIN({config[parameter]['daily_min']}) AS min_value,
+                                                MAX({config[parameter]['daily_max']}) AS max_value
+                                                FROM {config[parameter]['daily_table']}
+                                                WHERE G_ID = {str(site_sql_id)};"""
+                        
+                        with sql_engine.begin() as conn:
+                                result = conn.execute(select_statement).fetchone()
+                       
+                        min_corrected_data = result['min_value']
+                        max_corrected_data = result['max_value']
+                except Exception as e:
+                        print(f"Error occurred: {e}")  # This will show you what's wrong
+                        min_corrected_data = np.nan
+                        max_corrected_data = np.nan
+                min_derived_parameter = np.nan
+                max_derived_parameter = np.nan
+        elif parameter == "discharge":
+                try:
+                        select_statement = f"""SELECT 
+                                                MIN({config[parameter]['daily_min']}) AS min_value,
+                                                MAX({config[parameter]['daily_max']}) AS max_value,
+                                                MIN({config[parameter]['discharge_min']}) AS min_derived_parameter,
+                                                MAX({config[parameter]['discharge_max']}) AS max_derived_parameter
+                                                FROM {config[parameter]['daily_table']}
+                                                WHERE G_ID = {str(site_sql_id)};"""
+                        with sql_engine.begin() as conn:
+                                result = conn.execute(select_statement).fetchone()
+                        
+                        min_corrected_data = result['min_value']
+                        max_corrected_data = result['max_value']
+                        min_derived_parameter = result['min_derived_parameter']  # Fixed
+                        max_derived_parameter = result['max_derived_parameter']  # Fixed
+                except Exception as e:
+                        print(f"Error occurred: {e}")  # Added error printing
+                        min_corrected_data = np.nan
+                        max_corrected_data = np.nan
+                        min_derived_parameter = np.nan
+                        max_derived_parameter = np.nan
+               
         # Extract first and last datetime from the result
         statistics = {
         "first_datetime": first_datetime,
         "last_datetime": last_datetime,
         "percentile_05_q": percentile_95_q,
-        "percentile_05": percentile_95
+        "percentile_05": percentile_95,
+        "min_corrected_data": min_corrected_data,
+        "max_corrected_data": max_corrected_data,
+        "min_derived_parameter": min_derived_parameter,
+        "max_derived_parameter": max_derived_parameter,
         }
+        
         return statistics
 
 def sql_get_closest_datetime(parameter, site_sql_id, date):
