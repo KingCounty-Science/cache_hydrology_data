@@ -100,14 +100,16 @@ def reformat_data(df):
         df['observation'] = df['observation'].astype(float, errors="ignore")
         df['observation'] = df['observation'].replace("", np.nan)
       
-   
+        #pd.to_numeric(df['corrected_data'], errors='coerce')
     if 'observation_stage' in df.columns:
         # Replace empty strings with NaN first
+        df['observation_stage'] = df['observation_stage'].astype(float, errors="ignore")
         df['observation_stage'] = df['observation_stage'].replace("", np.nan)
+        #df['observation_stage'] = df['observation_stage'].replace("", np.nan)
         # Convert to float, coercing errors to NaN
-        df['observation_stage'] = pd.to_numeric(df['observation_stage'], errors='coerce')
+        #df['observation_stage'] = pd.to_numeric(df['observation_stage'], errors='coerce')
         # Round to 2 decimal places
-        df['observation_stage'] = df['observation_stage'].round(2)
+        #df['observation_stage'] = df['observation_stage'].round(2)
         #df.loc[~pd.isna(df['observation_stage']), 'observation_stage']\
         #df['observation_stage'] = df['observation_stage'].round("", np.nan)
     if 'parameter_observation' in df.columns:
@@ -191,83 +193,51 @@ def style_formatting(): # I think this is for an ag grid and dont use this
 def parameter_calculation(df, data_level):
     
     if "field_observations" in df.columns:
-            obs = "field_observations"
+        obs = "field_observations"
     elif "observations" in df.columns:
-            obs = "observations"
+        obs = "observations"
     elif "observation" in df.columns:
-            obs = "observation"
+        obs = "observation"
     elif "observation_stage" in df.columns:
-            obs = "observation_stage"
-    elif "observation_stage" not in df.columns and "parameter_observation" in df.columns:
-            obs = "parameter_observation"
-        #"""if observation not in df.columns:
-        #        df[observation] = np.nan
-        #if 'offset' not in df.columns:
-        #        df["offset"] = np.nan"""
+        obs = "observation_stage"
+    elif "parameter_observation" in df.columns:
+        obs = "parameter_observation"
     else:
         obs = "no observation"
     
     if obs != "no observation":
+        ### non valid data, origionally I had a search to only correct over valid points,
+        ### correcting over ALL points then zeroing out non-valid data makes more sense and is more fool proof....i think
         # Calculate offset only from valid data points
-        valid_for_offset = (
-            (df[data_level] != -999) & 
-            (df.get('warning', 0) != 1) &
-            (~df[obs].isna()) &  # Make sure obs data exists
-            (~df[data_level].isna())  # Make sure sensor data exists
-        )
+        print("run data correction", obs)
 
         # Initialize offset series
         df['offset'] = np.nan
 
         # Calculate offset only where both obs and sensor data are valid
-        df.loc[valid_for_offset, 'offset'] = (
-            df.loc[valid_for_offset, obs] - df.loc[valid_for_offset, data_level]
-        ).round(2)
-
+        df['offset'] = df[obs] - df[data_level]
+        print("obs offset")
+        print(df.head(5))
         # Interpolate the offset to fill gaps
         df['offset'] = df['offset'].interpolate(method='linear', axis=0, limit_direction='both')
-
+        print("offset interpolation")
+        print(df.head(5))
         # Apply correction only to valid data points
-        valid_for_correction = (
-            (df[data_level] != -999) & 
-            (df.get('warning', 0) != 1) &
-            (~df['offset'].isna())  # Make sure we have an offset to apply
-        )
-
+       
         # Initialize corrected_data with original sensor data
         if 'corrected_data' not in df.columns:
             df['corrected_data'] = df[data_level]
 
         # Apply correction only where valid
-        df.loc[valid_for_correction, 'corrected_data'] = (
-            df.loc[valid_for_correction, data_level] + 
-            df.loc[valid_for_correction, 'offset']
-        ).round(2)
+        df.loc[:, 'corrected_data'] = (df[data_level] + df['offset']).round(2)
 
         # Final offset calculation based on raw data (for metadata)
         # This should use the original raw data column, not corrected_data
         df['offset'] = (df[obs] - df["data"]).round(2)  # Assuming "data" is your raw sensor 
-        """# calculate offset based on data level (data/corrected data)
-        df['offset'] = df[obs] - df[data_level]
-        df['offset'].interpolate( method='linear', inplace=True, axis=0, limit_direction='both')
-        # this applys offset over the whole df but only corrects when not dry
-        # Assuming you want to exclude -999 (dry/no-data) and warning flags
-        valid_data = (df["corrected_data"] != -999) & (df.get('warning', 0) != 1)
-        
-        # Apply correction only where conditions are met
-        df['corrected_data'] = np.where(
-            valid_data,
-            (df[data_level] + df['offset']).round(2),
-            df["corrected_data"]  # Keep original value where conditions not met
-        )
-        # df['corrected_data'] = (df[data_level]+df['offset']).round(2) calculate corrected data ignoring dry data
-        # re-calculate offset based on raw data for metadata
-        df['offset'] = (df[obs] - df["data"]).round(2)"""
-    df = df.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
+        print("data correction")
+        print(df.head(5))
     
-       
-    return df
-
+    return df  # Don't forget to return the dataframe!
 def add_comparison_site(comparison_site, comparison_site_sql_id, comparison_parameter, df, startDate, endDate):
      # add comparison df
         #start_date = df['datetime'].min()

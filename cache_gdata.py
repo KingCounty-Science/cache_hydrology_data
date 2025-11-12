@@ -7,7 +7,7 @@ updated Friday Feb 14 2025
 """
 import base64
 import io
-import dash_mantine_components as dmc
+
 import json
 import pyodbc
 import configparser
@@ -1404,34 +1404,33 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
     except KeyError:
         observation = ""
     
-    # Get the triggered property from Dash callback context
+
     changed_id = ctx.triggered_id
+   
     
-    # Check if this is a fresh import_data trigger - if so, ignore existing rows
-    force_reload = (changed_id == "import_data")
+   
     
-    # Determine which data source to use
-    if force_reload and import_data:
-        try:
+    try:
+        observation = config[parameter]["observation_class"]
+    except KeyError:
+        observation = ""
+    # Get the triggered property from Dash callback context
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] 
+   
+   
+    
+
+    if not pd.read_json(import_data, orient="split").empty and not "datetime" in pd.DataFrame(rows).columns: # and import_data is not None:
+          
             data = pd.read_json(import_data, orient="split")
-            if data.empty:
-                return dash.no_update
-        except Exception as e:
-            print(f"Error reading import_data: {e}")
-            return dash.no_update
-    elif import_data and (not rows or "datetime" not in pd.DataFrame(rows).columns):
-        try:
-            data = pd.read_json(import_data, orient="split")
-            if data.empty:
-                return dash.no_update
-        except Exception as e:
-            print(f"Error reading import_data: {e}")
-            return dash.no_update
-    elif rows and "datetime" in pd.DataFrame(rows).columns:
-        data = pd.DataFrame(rows)
+    elif "datetime" in pd.DataFrame(rows).columns:
+          
+            data = pd.DataFrame(rows)
     else:
-        print("No valid data source, returning no_update")
-        return dash.no_update
+         
+            return dash.no_update
+
+            
 
     data = reformat_data(data)
     data = initial_column_managment(data)
@@ -1440,7 +1439,11 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
     # format observations if present
     if obs_rows:
         observations = pd.DataFrame(obs_rows)
+       
         observations = reformat_data(observations)
+        print("observation")
+        print(observations)
+        print(observations.dtypes)
         observations = observations.dropna(subset=['datetime'])
         #print("data_interval", data_interval)
         data = pd.merge_asof(data.sort_values('datetime'), observations.sort_values('datetime'), on='datetime', tolerance=pd.Timedelta(f"{int(data_interval)/2}m"), direction="nearest")
@@ -1487,6 +1490,7 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         if changed_id == "resample_button":
             from interpolation import resample_data
             data = resample_data(data, data_interval)
+        
         data = parameter_calculation(data, data_level)
         
     # Additional logic for specific parameters
