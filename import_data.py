@@ -43,12 +43,14 @@ def sql_import(parameter, site_sql_id, start_date, end_date):
     if start_date != '' and end_date != '': # if there is a startdate or all obs generate query string
 
         if parameter == "FlowLevel" or parameter == "discharge":
-                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['discharge']} as discharge, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning "
+                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['discharge']} as discharge, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning, {config[parameter]['provisional']} as provisional  "
         elif parameter == "barometer":
                 # barometer (only has "data column")
                 select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning "
+        elif parameter == "water_level" or parameter == "groundwater_level": # get dry indicator
+                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning, {config[parameter]['non_detect']} as non_detect, {config[parameter]['provisional']} as provisional   "
         else:
-                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning "
+                select_statement = f"SELECT DATEADD(HOUR, -7, CONVERT(DATETIME, {config[parameter]['datetime']}, 120)) as datetime, {config[parameter]['data']} as data, {config[parameter]['corrected_data']} as corrected_data, {config[parameter]['est']} as estimate, {config[parameter]['warning']} as warning, {config[parameter]['provisional']} as provisional   "
                 
         if start_date == '*' and end_date == "*": # if querying all datetimes you dont need a between
                 with sql_engine.begin() as conn:

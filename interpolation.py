@@ -786,6 +786,9 @@ def resample_data(df, data_interval):
     if "warning" in df.columns:
         df["warning"] = df["warning"].ffill()
         df["warning"] = df["warning"].bfill()
+    if "non_detect" in df.columns:
+        df["non_detect"] = df["non_detect"].ffill()
+        df["non_detect"] = df["non_detect"].bfill()
     return df
 
 def basic_interpolation(df, method, set_limit, limit_number, direction, area, interp_data, interp_corrected_data):
@@ -802,6 +805,9 @@ def basic_interpolation(df, method, set_limit, limit_number, direction, area, in
         if "warning" in df.columns:
             df["warning"] = df["warning"].ffill()
             df["warning"] = df["warning"].bfill()
+        if "non_detect" in df.columns:
+            df["non_detect"] = df["non_detect"].ffill()
+            df["non_detect"] = df["non_detect"].bfill()
     if 'on' in interp_corrected_data:
         if set_limit == "limit": # limit consecutive na values
             df["corrected_data"] = df["corrected_data"].interpolate(method=method, limit = limit_number, limit_direction = direction, limit_area = area)
@@ -823,6 +829,8 @@ def run_basic_forward_fill(df, fill_limit, fill_limit_number, fill_area, interp_
 
         if "warning" in df.columns:
             df["warning"] = df["warning"].ffill()
+        if "non_detect" in df.columns:
+            df["non_detect"] = df["non_detect"].ffill()
     if 'on' in interp_corrected_data:
         if fill_limit == "limit":
             df["corrected_data"].ffill(inplace = True, limit = fill_limit_number)
@@ -845,6 +853,9 @@ def run_basic_backward_fill(df, fill_limit, fill_limit_number, fill_area, interp
 
         if "warning" in df.columns:
             df["warning"] = df["warning"].bfill()
+
+        if "non_detect" in df.columns:
+            df["non_detect"] = df["non_detect"].bfill()
     if 'on' in interp_corrected_data:
         if fill_limit == "limit":
             df["correcte_data"].bfill(inplace = True, limit = fill_limit_number)

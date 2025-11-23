@@ -353,10 +353,19 @@ html.Details([
 
   
     html.Div(id='graph_output', style={'width': '50vw', }), # Use viewport width to scale with screen size
-    html.Div(dcc.Graph(id='graph',figure=go.Figure(),config={'responsive': True}),),
+    html.Div(dcc.Graph(id='graph',figure=go.Figure(),config={'responsive': True, 'modeBarButtonsToAdd': ['select2d', 'lasso2d']}),),    
+    
 
     html.Div(id="graph_where"),
     # it is hard to make this dcc dropdown take up enough room inclosing it in html.Div([]) restricts it to a small window
+
+    # Add this button to your layout
+    # store selected data
+  
+
+    # In your layout
+    #dcc.Store(id='selected-data-store'),
+    #html.Button('Clear Selection', id='clear-selection-button', n_clicks=0),
     html.Div(dcc.Dropdown(id='Ratings', value='NONE'), style={'display': 'block'}),
 
     html.Div(id="display"),
@@ -421,6 +430,7 @@ html.Details([
                 {'if': {'column_id': 'offset'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
                 {'if': {'column_id': 'estimate'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
                 {'if': {'column_id': 'warning'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
+                {'if': {'column_id': 'non_detect'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
                 {'if': {'column_id': 'comments'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
                 {'if': {'column_id': 'c_stage'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
                 {'if': {'column_id': 'c_discharge'}, 'width': '90px', 'maxWidth': '90px', 'minWidth': '90px', 'textAlign': 'center'},
@@ -682,6 +692,10 @@ style={
                                 daq.NumericInput(id = "secondary_max", label='secondary max',labelPosition='bottom',value=" "),
                         ]),
                         dbc.ModalFooter(dbc.Button("close", id="close-graphing-options-button", className="ml-auto")),], id="graphing-options", size="xl",),   
+
+
+
+                        
         ], style={'display': 'flex', 'flex-direction': 'row'}),
     ], style={'padding': '10px'})
 ], 
@@ -1097,6 +1111,15 @@ def daterange(observations, startDate, endDate, site, site_sql_id, parameter,
               data_source, obs_a, obs_b, data_interval, stats_json):
     if not site_sql_id or not parameter or not stats_json:
         return dash.no_update
+    elif parameter == "barometer": # barometer is funny for some reason so we are bypassing the stats df for now
+        if startDate is not None and endDate is not None: # if a start and end date then send those
+            
+            query_start_date = startDate
+            query_end_date = endDate
+            
+            return dash.no_update, dash.no_update, query_start_date, query_end_date
+        else:
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update
     else:
         # create obs for dropdowns 
         query_start_date = ""
@@ -1104,6 +1127,7 @@ def daterange(observations, startDate, endDate, site, site_sql_id, parameter,
         
         # Load statistics dataframe
         stats_df = pd.read_json(stats_json, orient="split")
+   
         stats_df['datetime'] = pd.to_datetime(stats_df['datetime']).dt.tz_localize(None)
         
         # Read observations
@@ -1350,7 +1374,6 @@ def observations_dattable(observations, add_row_button_a, refresh_button_a, inra
         return dash.no_update
 
 
-
 @app.callback(
     Output("corrected_data_datatable", "data"),
     Output("corrected_data_datatable", "columns"),
@@ -1405,8 +1428,8 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         observation = ""
     
 
-    changed_id = ctx.triggered_id
-   
+    changed_id = ctx.triggered_id # just looks at "update_button"
+    #changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] # requires "update_button.n_clicks"
     
    
     
@@ -1415,7 +1438,7 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
     except KeyError:
         observation = ""
     # Get the triggered property from Dash callback context
-    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] 
+    #changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] 
    
    
     
@@ -1430,10 +1453,12 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
          
             return dash.no_update
 
-            
+    
 
     data = reformat_data(data)
+    
     data = initial_column_managment(data)
+    
     data = fill_timeseries(data, data_interval)
     
     # format observations if present
@@ -1441,9 +1466,7 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         observations = pd.DataFrame(obs_rows)
        
         observations = reformat_data(observations)
-        print("observation")
-        print(observations)
-        print(observations.dtypes)
+ 
         observations = observations.dropna(subset=['datetime'])
         #print("data_interval", data_interval)
         data = pd.merge_asof(data.sort_values('datetime'), observations.sort_values('datetime'), on='datetime', tolerance=pd.Timedelta(f"{int(data_interval)/2}m"), direction="nearest")
@@ -1454,25 +1477,25 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
     if comparison_data:
         try:
             comparison_data = pd.read_json(comparison_data, orient="split")
-            if not comparison_data.empty:
-                comparison_data = reformat_data(comparison_data)
-                c_data = comparison_data.loc[(comparison_data["site"] == site) & (comparison_data["parameter"] == parameter)]
-                c_data = c_data[["datetime", "corrected_data"]]
-                if not c_data.empty:
-                    c_data = c_data.rename(columns={"datetime": "datetime", "corrected_data": f"c_{parameter}"})
-                if parameter == "discharge":
-                    wl_data = comparison_data.loc[(comparison_data["site"] == site) & (comparison_data["parameter"] == "stage")]
-                    wl_data = wl_data[["datetime", "corrected_data"]]
-                    if not wl_data.empty:
-                        wl_data = wl_data.rename(columns={"datetime": "datetime", "corrected_data": f"c_stage"})
-                        c_data = wl_data.merge(c_data, left_on="datetime", right_on="datetime", how="outer")
-                data = data.merge(c_data, left_on="datetime", right_on="datetime", how="outer")
+            #if not comparison_data.empty:
+            #    comparison_data = reformat_data(comparison_data)
+            #    c_data = comparison_data.loc[(comparison_data["site"] == site) & (comparison_data["parameter"] == parameter)]
+            #    c_data = c_data[["datetime", "corrected_data"]]
+            #    if not c_data.empty:
+            #        c_data = c_data.rename(columns={"datetime": "datetime", "corrected_data": f"c_{parameter}"})
+            #    if parameter == "discharge":
+            #        wl_data = comparison_data.loc[(comparison_data["site"] == site) & (comparison_data["parameter"] == "stage")]
+            #        wl_data = wl_data[["datetime", "corrected_data"]]
+            #        if not wl_data.empty:
+            #            wl_data = wl_data.rename(columns={"datetime": "datetime", "corrected_data": f"c_stage"})
+            #            c_data = wl_data.merge(c_data, left_on="datetime", right_on="datetime", how="outer")
+            #    data = data.merge(c_data, left_on="datetime", right_on="datetime", how="outer")
         except:
             pass
     
     if "c_discharge" in data.columns and comparison_data is None:
         data.drop("c_discharge", axis=1, inplace=True)
-          
+  
     # Realtime update or run job logic
     if realtime_update is True or changed_id == 'run_job':
         if changed_id == "to_observations_button":
@@ -1487,11 +1510,13 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         if changed_id == "basic_forward_fill":
             from interpolation import run_basic_forward_fill
             data = run_basic_forward_fill(data, fill_limit, fill_limit_number, fill_area, interp_data, interp_corrected_data)
-        if changed_id == "resample_button":
+        if changed_id == "resample_button" or changed_id == "resample_button.n_clicks":
             from interpolation import resample_data
+          
             data = resample_data(data, data_interval)
         
         data = parameter_calculation(data, data_level)
+        
         
     # Additional logic for specific parameters
     if (parameter == "discharge" or parameter == "FlowLevel") and rating_number != "NONE":   
@@ -1521,11 +1546,12 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
     elif changed_id == 'clear-dry-indicator':
         from data_cleaning import clear_dry_indicator_function
         data = clear_dry_indicator_function(data, start_dry_indicator_range, end_dry_indicator_range)
-        mask = (data['datetime'] >= start_dry_indicator_range) & (data['datetime'] <= end_dry_indicator_range)
-        data.loc[mask, 'warning'] = 0
-        data.loc[mask, 'corrected_data'] = np.nan
+        #mask = (data['datetime'] >= start_dry_indicator_range) & (data['datetime'] <= end_dry_indicator_range)
+        #data.loc[mask, 'warning'] = 0
+        #data.loc[mask, 'corrected_data'] = np.nan
 
     data = column_managment(data)
+   
     # Reformat the datetime for Dash graph display
     data["datetime"] = data["datetime"].dt.strftime('%Y-%m-%d %H:%M')
     # Convert to records
@@ -1534,9 +1560,43 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
     
     return data_records, columns
   
+
+
+
+#selected_points = selectedData['points']
+    
+## Get x and y values from selected points
+#x_values = [point['x'] for point in selected_points]
+#y_values = [point['y'] for point in selected_points]
+    
+## If you have custom data stored in the trace
+#if 'customdata' in selected_points[0]:
+#custom_values = [point['customdata'] for point in selected_points]
+    
+# Example: return as a dataframe
+    
+#df_selected = pd.DataFrame({
+#'x': x_values,
+#        'y': y_values
+#    })
+#    print("selected points")
+#    print(selected_points)
+#    return selected_points
+### clear selected data
+#@app.callback(
+#    Output('graph', 'selectedData'),
+#    Input('clear-selection-button', 'n_clicks'),
+#    prevent_initial_call=True
+#)
+#def clear_selection(n_clicks):
+#    return None
+
 @app.callback(
         #Output(component_id='graph_output', component_property='children'),
         Output('graph', "figure"),
+        #Output('graph', 'selectedData'),
+        #Output('selected-data-store', 'data'),  # or whatever output you need
+        #Input('graph', 'selectedData'),
         Input('graph_realtime_update', 'value'),
         Input("corrected_data_datatable", "data"),
         State('site_selector', 'value'), # only needed to graph existing data differenty
@@ -1556,12 +1616,16 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         State('query_end_date', 'data'), # obs b),
 )
 def graph(graph_realtime_update, df, site_selector_value, site, site_sql_id, parameter, comparison_data, rating, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics, query_start_date, query_end_date):
+    """when its all said and done this is pretty inefficient; it started this way because i was exporting the plotly graph, now i export a seperate matplotlib graph """
+    
     from data_cleaning import reformat_data, parameter_calculation
     from graph_2 import cache_graph_export
     df = pd.DataFrame(df)
     comparison_data = pd.read_json(comparison_data, orient = "split")
-    
+    #selected_data = selectedData
     if not df.empty and graph_realtime_update is True:
+        #print("selected data")
+        #print(selectedData)
         df = reformat_data(df) 
         if query_start_date != "" and query_end_date != "": # really we are trying to get rid of comparison data
                 df = df.loc[(df["datetime"] >= query_start_date) & (df["datetime"] <= query_end_date)].copy()
@@ -1571,7 +1635,9 @@ def graph(graph_realtime_update, df, site_selector_value, site, site_sql_id, par
             query_end_date = df['datetime'].max()
         #fig = html.Div(dcc.Graph(figure = go.Figure()), style = {'width': '100%', 'display': 'inline-block'})
         fig = cache_graph_export(df, site_sql_id, site_selector_value, site, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
-        return fig
+        #fig.update_layout(dragmode='lasso', hovermode='closest',) # allows for selection
+        
+        return fig #selected_points
     else:
             return dash.no_update
 
@@ -1709,7 +1775,7 @@ def run_data_action(upload_clicks, export_clicks, df, site_selector_value, site,
                             plot_for_save(period_df, site_selector_value, site_sql_id, site, parameter, comparison_data, 
                                             primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
                             workup_notes_main(period_df, parameter, site_sql_id, site)
-                            desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]
+                            desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning", "non_detect"]
                             df_export = period_df[[col for col in desired_order if col in period_df.columns]].copy()
                             export_path = f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter}_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.csv"
                             df_export.to_csv(export_path, index=False)
@@ -1720,8 +1786,8 @@ def run_data_action(upload_clicks, export_clicks, df, site_selector_value, site,
             if not session_enabled:  # no session upload
                 plot_for_save(df, site_selector_value, site_sql_id, site, parameter, comparison_data, 
                                 primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
-                workup_notes_main(df, parameter, site_sql_id, site)  # Fixed: use df instead of undefined period_df
-                desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]
+                
+                desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning", "non_detect"]
                 df_export = df[[col for col in desired_order if col in df.columns]].copy()
                 export_path = f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter}_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.csv"
                 df_export.to_csv(export_path, index=False)
@@ -1729,10 +1795,13 @@ def run_data_action(upload_clicks, export_clicks, df, site_selector_value, site,
             # sql upload
             if trigger_id == "upload_data_button":
                 from sql_upload import full_upload
-                    
+                workup_notes_main(df, parameter, site_sql_id, site)  # Fixed: use df instead of undefined period_df    
                 # Use the same df_export logic as above
-                desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]
+                desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning", "non_detect"]
                 df_final = df[[col for col in desired_order if col in df.columns]].copy()
+
+                if parameter not in ["water_level", "groundwater_level"] and "non_detect" in df_final.columns:  # drop non_detect if there isnt a non detect column in db yet
+                    df_final = df_final.drop(columns=["non_detect"])
                     
                 full_upload(df_final, parameter, site_sql_id, 7)
                 print("Upload complete")

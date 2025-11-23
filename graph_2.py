@@ -159,8 +159,8 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
 
     ### filter out dry data
     dry = df.copy()
-    dry.loc[dry['corrected_data'] != -99, 'corrected_data'] = np.nan
-    df.loc[df['corrected_data'] == -99, 'corrected_data'] = np.nan
+    dry.loc[dry['non_detect'] != "1", 'corrected_data'] = np.nan
+    df.loc[df['non_detect'] == "1", 'corrected_data'] = np.nan
 
     # get site number?
      # replace _ with space
@@ -342,7 +342,7 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
             dry_min = df["corrected_data"].min()
             if dry_min < 0+20: # in elevation not relative feet
                 dry_min = 0
-            dry.loc[dry['corrected_data'] == -99, 'corrected_data'] = dry_min
+            dry.loc[dry['non_detect'] == "1", 'corrected_data'] = dry_min
             fig.add_trace(go.Scatter(
                     x=dry.loc[:, "datetime"],
                     y=dry.loc[:, "corrected_data"],
@@ -387,15 +387,15 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                 meta=f"precentile_05_q",), row=row_count, col=1, secondary_y=derived_parameter_axis)
 
     # dry indicator
-    if f"dry_indicator" in df.columns and data_axis != "none":
-        
-        df.loc[df['dry_indicator'] == "dry indicator", "dry_indicator"] = df['data'].min()
-        df.loc[df['dry_indicator'] == " ", "dry_indicator"] =  np.nan # graph dry data is data min for visualization
-        fig.add_trace(go.Scatter(
-                x=df.loc[:, "datetime"], # 1 is graph if dry 0 is graph if not dry
-                y=df.loc[:, f"dry_indicator"],
-                line=dict(color=color_map.get(f"dry_indicator", 'black'), width = 2), name=f"dry indicator",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
-                meta=f"dry indicator",), row=row_count, col=1, secondary_y=data_axis),
+    #if f"dry_indicator" in df.columns and data_axis != "none":
+    #    
+    #    df.loc[df['dry_indicator'] == "dry indicator", "dry_indicator"] = df['data'].min()
+    #    df.loc[df['dry_indicator'] == " ", "dry_indicator"] =  np.nan # graph dry data is data min for visualization
+    #    fig.add_trace(go.Scatter(
+    #            x=df.loc[:, "datetime"], # 1 is graph if dry 0 is graph if not dry
+    #            y=df.loc[:, f"dry_indicator"],
+    #            line=dict(color=color_map.get(f"dry_indicator", 'black'), width = 2), name=f"dry indicator",showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
+    #            meta=f"dry indicator",), row=row_count, col=1, secondary_y=data_axis),
         
     # average
     if f"mean" in df.columns and data_axis != "none":
@@ -612,8 +612,8 @@ def plot_for_save(df, site_selector_value, site_sql_id, site, parameter, compari
         
         # Prepare dry/non-detect data
         dry = dfp.copy()
-        dry.loc[dfp['corrected_data'] != -99, 'corrected_data'] = np.nan
-        dfp.loc[dfp['corrected_data'] == -99, 'corrected_data'] = np.nan
+        dry.loc[dry['non_detect'] != "1", 'corrected_data'] = np.nan
+        dfp.loc[dfp['non_detect'] == "1", 'corrected_data'] = np.nan
         
         # Plot based on parameter type
         if parameter == "discharge":
@@ -667,7 +667,7 @@ def plot_for_save(df, site_selector_value, site_sql_id, site, parameter, compari
                 dry_min = dfp["corrected_data"].min()
                 if dry_min < 20:
                     dry_min = 0
-                dry.loc[dry["corrected_data"] == -99, "corrected_data"] = dry_min
+                dry.loc[dry["non_detect"] == "1", "corrected_data"] = dry_min
                 ax1.plot(dry["datetime"], dry["corrected_data"], 
                         label="dry / non-detect", color="#567494", linewidth=2)
         
@@ -699,7 +699,7 @@ def plot_for_save(df, site_selector_value, site_sql_id, site, parameter, compari
                 dry_min = dfp["corrected_data"].min()
                 if dry_min < 20:
                     dry_min = 0
-                dry.loc[dry["corrected_data"] == -99, "corrected_data"] = dry_min
+                dry.loc[dry["non_detect"] == "1", "corrected_data"] = dry_min
                 ax1.plot(dry["datetime"], dry["corrected_data"], 
                         label="dry / non-detect", color="#567494", linewidth=2)
         
@@ -840,6 +840,7 @@ def plot_for_save(df, site_selector_value, site_sql_id, site, parameter, compari
         last_idx = q_obs_df['datetime'].idxmax()
         
         # Left side
+        
         fig.text(0.01, 0.99, f"rating {q_obs_df.loc[first_idx, 'rating_number']}", 
                 transform=ax1.transAxes, fontsize=9, verticalalignment='top')
         fig.text(0.01, 0.96, f"obs {q_obs_df.loc[first_idx, 'q_observation']}", 

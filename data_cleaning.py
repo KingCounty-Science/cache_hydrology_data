@@ -33,6 +33,8 @@ def fill_timeseries(data, data_interval):
     if "warning" not in data.columns:
         data["warning"] = "0"
 
+    if "non_detect" not in data.columns:
+        data["non_detect"] = "0"
     if "corrected_data" not in data.columns:
         data["corrected_data"] = np.nan
 
@@ -134,6 +136,10 @@ def reformat_data(df):
         df['estimate'] = df['estimate'].astype(int, errors="ignore")
     if 'warning' in df.columns:
         df['warning'] = df['warning'].astype(int, errors="ignore")
+    #if 'non_detect' in df.columns:
+    #    df['non_detect'] = df['non_detect'].astype(int, errors="ignore")
+    if 'provisional' in df.columns:
+        df['provisional'] = df['provisional'].astype(int, errors="ignore")
     if 'measurement_number' in df.columns:
         df['measurement_number'] = df['measurement_number'].astype(float, errors="ignore")
     if 'discharge_observation' in df.columns:
@@ -144,7 +150,7 @@ def reformat_data(df):
 
 def initial_column_managment(df):
       #search for columns and re arrange if present
-        desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning"]  # observation and observation_stage are kinda redundent at some point and should be clarified
+        desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning", "non_detect", "provisional"]  # observation and observation_stage are kinda redundent at some point and should be clarified
         #comparison_columns = (df.columns[df.columns.str.contains('comparison')]).values.tolist()
         #comparison_columns = df.columns[df.columns.str.contains('comparison')].tolist()
         
@@ -161,7 +167,7 @@ def initial_column_managment(df):
 def column_managment(df):
      
     #search for columns and re arrange if present
-        desired_order = ["datetime", "c_stage", "c_corrected_data", "c_water_level", "c_water_temperature", "c_discharge", "data", "corrected_data", "discharge", "observation", "observation_stage", "parameter_observation", "q_observation", "offset", "q_offset", "precent_q_change", "rating_number", "estimate", "warning", "comparison", "dry_indicator", "comments", "mean", "interpolated_data"]  # observation and observation_stage are kinda redundent at some point and should be clarified
+        desired_order = ["datetime", "c_stage", "c_corrected_data", "c_water_level", "c_water_temperature", "c_discharge", "data", "corrected_data", "discharge", "observation", "observation_stage", "parameter_observation", "q_observation", "offset", "q_offset", "precent_q_change", "rating_number", "estimate", "warning", "non_detect", "provisional", "comparison", "dry_indicator", "comments", "mean", "interpolated_data"]  # observation and observation_stage are kinda redundent at some point and should be clarified
         #comparison_columns = (df.columns[df.columns.str.contains('comparison')]).values.tolist()
         comparison_columns = df.columns[df.columns.str.contains('comparison')].tolist()
         
@@ -209,19 +215,17 @@ def parameter_calculation(df, data_level):
         ### non valid data, origionally I had a search to only correct over valid points,
         ### correcting over ALL points then zeroing out non-valid data makes more sense and is more fool proof....i think
         # Calculate offset only from valid data points
-        print("run data correction", obs)
+        
 
         # Initialize offset series
         df['offset'] = np.nan
 
         # Calculate offset only where both obs and sensor data are valid
         df['offset'] = df[obs] - df[data_level]
-        print("obs offset")
-        print(df.head(5))
+        
         # Interpolate the offset to fill gaps
         df['offset'] = df['offset'].interpolate(method='linear', axis=0, limit_direction='both')
-        print("offset interpolation")
-        print(df.head(5))
+        
         # Apply correction only to valid data points
        
         # Initialize corrected_data with original sensor data
@@ -234,8 +238,9 @@ def parameter_calculation(df, data_level):
         # Final offset calculation based on raw data (for metadata)
         # This should use the original raw data column, not corrected_data
         df['offset'] = (df[obs] - df["data"]).round(2)  # Assuming "data" is your raw sensor 
-        print("data correction")
-        print(df.head(5))
+        #  remove from dry data --this is a bit hacky but easier to code
+        if "non_detect" in df.columns:
+            df.loc[df["non_detect"].isin([1, "1", True, "True"]), "corrected_data"] = np.nan
     
     return df  # Don't forget to return the dataframe!
 def add_comparison_site(comparison_site, comparison_site_sql_id, comparison_parameter, df, startDate, endDate):
@@ -376,24 +381,38 @@ def set_dry_indicator_function(data, start_dry_indicator_range, end_dry_indicato
             return data
                         
         # Apply dry warning
-        data.loc[mask, 'warning'] = 1
-        data.loc[mask, 'corrected_data'] = -99
+        data.loc[mask, 'warning'] = "1"
+        data.loc[mask, 'non_detect'] = "1"
+        data.loc[mask, 'corrected_data'] = np.nan
         return data
     except Exception as e:
         return data
                         
 def apply_dry_threshold_raw_function(data, dry_threshold_raw_input):
-    data.loc[data["data"] <= dry_threshold_raw_input, "corrected_data"] = -99
-    data.loc[data["data"] <= dry_threshold_raw_input, "warning"] = 1
+  
+    # Identify rows that meet the condition ONCE
+    mask = data["data"] <= dry_threshold_raw_input
+
+    # Apply all changes using the same mask
+    data.loc[mask, "warning"] = "1"
+    data.loc[mask, "non_detect"] = "1"
+    data.loc[mask, "corrected_data"] = np.nan  # Do this LAST
     return data
 
 def apply_dry_threshold_corrected_data_function(data, dry_threshold_corrected_data_input):
-    data.loc[data["corrected_data"] <= dry_threshold_corrected_data_input, "corrected_data"] = -99
-    data.loc[data["corrected_data"] <= dry_threshold_corrected_data_input, "warning"] = 1
+    # Identify rows that meet the condition ONCE
+    mask = data["corrected_data"] <= dry_threshold_corrected_data_input
+
+    # Apply all changes using the same mask
+    data.loc[mask, "warning"] = "1"
+    data.loc[mask, "non_detect"] = "1"
+    data.loc[mask, "corrected_data"] = np.nan  # Do this LAST
+   
     return data
 
 def clear_dry_indicator_function(data, start_dry_indicator_range, end_dry_indicator_range):
     mask = (data['datetime'] >= start_dry_indicator_range) & (data['datetime'] <= end_dry_indicator_range)
-    data.loc[mask, 'warning'] = 0
-    data.loc[mask, 'corrected_data'] = np.nan  # Clear corrected_data
+    data.loc[mask, 'warning'] = "0"
+    data.loc[mask, 'corrected_data'] = np.nan 
+    data.loc[mask, 'non_detect'] =" 0"  # Clear corrected_data
     return data

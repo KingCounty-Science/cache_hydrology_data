@@ -106,6 +106,13 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         df.rename(columns={"warning": config[parameter]['warning']}, inplace=True)
         df[config[parameter]['warning']] = df[config[parameter]['warning']].astype(bool)
         return df
+    
+    def non_detect_column():
+        #df[config[parameter]['warning']] = "0"
+        df.rename(columns={"non_detect": config[parameter]['non_detect']}, inplace=True)
+        #df[config[parameter]['non_detect']] = df[config[parameter]['non_detect']].astype(bool)
+        df[config[parameter]['non_detect']] = df[config[parameter]['non_detect']].map({"0": False, "1": True})
+        return df
 
     def provisional_column():
         df[config[parameter]['provisional']] = "0"
@@ -264,6 +271,7 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         df = site_id(site_sql_id)
         df = utc_offset_column(utc_offset)
         df = warning_column()
+    
         # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
         df = sql_time()
         upload(df)
@@ -328,7 +336,9 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         df = site_id(site_sql_id)
         df = utc_offset_column(utc_offset)
         df = warning_column()
+        df = non_detect_column()
         # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
+        print(df)
         df = sql_time()
         
         upload(df)
@@ -343,6 +353,7 @@ def upload_data(df, parameter, site_sql_id, utc_offset):
         df = site_id(site_sql_id)
         df = utc_offset_column(utc_offset)
         df = warning_column()
+        df = non_detect_column()
         # ONLY USE THIS FOR SQL IMPORT IT ADDS & HOURS
         df = sql_time()
         upload(df)
