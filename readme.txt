@@ -9,6 +9,7 @@ A. # deactivate and delete venv before creating a new venv
     # pip install -r requirements.txt
     # activate venv and run program py app.py
 
+ /path/to/your/project
 2. activate venv a (venv) shold appear before the file path in terminal ie "(venv) PS C:\Users\ihiggins\Desktop\cache_hydro_data>"
 .\venv\Scripts\activate 
 
