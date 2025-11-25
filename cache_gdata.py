@@ -8,26 +8,24 @@ updated Friday Feb 14 2025
 import base64
 import io
 
-import json
+
 import pyodbc
 import configparser
 import dash
-from dash import callback_context
-from dash import Dash, html, Input, Output, callback, ctx
+
+from dash import Dash, html, Input, Output, callback, ctx, callback_context, dash_table
 from dash.dependencies import Input, Output, State
 from dash import dcc
 #from dash import html
-from dash import dash_table
 import pandas as pd
-import dash_datetimepicker
 import dash_daq as daq
-from datetime import timedelta
-from datetime import datetime
+
+from datetime import datetime, timedelta
 import numpy as np
 from sqlalchemy import create_engine
 import urllib
 import plotly.graph_objs as go
-import datetime as dt
+
 from dash.exceptions import PreventUpdate
 # long call back 
 # https://dash.plotly.com/long-callbacks
@@ -1616,7 +1614,9 @@ def graph(graph_realtime_update, df, site_selector_value, site, site_sql_id, par
     """when its all said and done this is pretty inefficient; it started this way because i was exporting the plotly graph, now i export a seperate matplotlib graph """
     
     from data_cleaning import reformat_data, parameter_calculation
+  
     from graph_2 import cache_graph_export
+   
     df = pd.DataFrame(df)
     comparison_data = pd.read_json(comparison_data, orient = "split")
     #selected_data = selectedData

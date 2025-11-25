@@ -3,19 +3,24 @@ import datetime as dt
 import configparser
 import os
 import numpy as np
-
-
-from scipy.signal import find_peaks, find_peaks_cwt
-#import dash_core_components as dcc
-from dash import dcc
-from dash import html
-import plotly.io as pio
-pio.kaleido.scope.default_format = "svg"
 from plotly.subplots import make_subplots
 import numpy as np
 import datetime as dt
 import plotly.graph_objects as go
-from sklearn import preprocessing
+
+#import dash_core_components as dcc
+
+import plotly.io as pio
+#pio.kaleido.scope.default_format = "svg"
+
+
+# Only set if kaleido is available
+if pio.kaleido.scope is not None:
+    pio.kaleido.scope.default_format = "svg"
+else:
+    print("Warning: Kaleido not available. Static image export will not work.")
+
+
 
 if not os.path.exists("images"):
     os.mkdir("images")

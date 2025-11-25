@@ -1,5 +1,4 @@
 import pandas as pd
-
 #pio.kaleido.scope.default_format = "svg"
 import plotly.graph_objs as go
 import numpy as np

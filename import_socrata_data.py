@@ -1,31 +1,15 @@
 import base64
-import io
-import pyodbc
-import configparser
-import dash
-from dash import callback_context
-from dash import html
-from dash.dependencies import Input, Output, State
-from dash import dcc
-#from dash import html
-from dash import dash_table
 import pandas as pd
-import dash_datetimepicker
-import dash_daq as daq
-from datetime import timedelta
-from datetime import datetime
 import numpy as np
 from sqlalchemy import create_engine
 import urllib
 import plotly.graph_objs as go
 import datetime as dt
-from dash.exceptions import PreventUpdate
 # long call back 
 # https://dash.plotly.com/long-callbacks
 ## launch a new web browser
 from web_browser import launch_web_broswer
 # launch_web_broswer()
-import dash_bootstrap_components as dbc
 from data_cleaning import reformat_data, parameter_calculation, column_managment
 from import_data import sql_statistics
 import os
@@ -34,18 +18,12 @@ from sodapy import Socrata
 import requests
 import base64
 from urllib.parse import urlencode
-from datetime import datetime, timedelta
-import plotly.express as px
 #from plotly import graph_objs as go
 #from plotly.graph_objs import *
 
 #import plotly.graph_objects as go
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output, State
-from io import StringIO
+
 import os
-from zoneinfo import ZoneInfo
 
 
 from dotenv import load_dotenv
