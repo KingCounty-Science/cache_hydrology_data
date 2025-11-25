@@ -585,23 +585,12 @@ def plot_for_save(df, site_selector_value, site_sql_id, site, parameter, compari
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
 
+
     matplotlib.use("Agg")  # Use non-GUI backend suitable for scripts/servers
 
     def create_hydrograph(df, site, parameter, statistics):
-        """
-        Create a hydrograph plot with dual y-axes for hydrological data.
-        
-        Parameters:
-        -----------
-        df : DataFrame
-            Input data with columns: datetime, corrected_data, data, etc.
-        site : str
-            Site name
-        parameter : str
-            Parameter type (water_temperature, discharge, etc.)
-        statistics : dict
-            Statistics dict with min/max values
-        """
+        """Create a hydrograph plot with dual y-axes for hydrological data."""
+
         statistics = pd.read_json(statistics, orient="split")
         dfp = df.copy()
         end_date = dfp["datetime"].max().date()
@@ -640,9 +629,11 @@ def plot_for_save(df, site_selector_value, site_sql_id, site, parameter, compari
         
         # Add metadata text
         _add_metadata_text(fig, ax1, dfp, parameter)
-        
+        import configparser
+        user_config = configparser.ConfigParser()
+        user_config.read('user_config.ini')
         # Save and export
-        export_path = (f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/"
+        export_path = (f"{user_config['directory']['user_temp_folder']}"
                     f"{site}_{parameter.replace('_', ' ')}_"
                     f"{dfp['datetime'].min().strftime('%Y-%m-%d')} to "
                     f"{dfp['datetime'].max().strftime('%Y-%m-%d')}.pdf")

@@ -61,6 +61,8 @@ config.read('gdata_config.ini')
 comparison_sites = configparser.ConfigParser()
 comparison_sites.read('gdata_config.ini')
 
+user_config = configparser.ConfigParser()
+user_config.read('user_config.ini')
 
 # new sql alchemy connection
 server = config['sql_connection']['Server']
@@ -557,11 +559,6 @@ style={
                             dcc.RangeSlider(id='interval', min=0, max=5, step=None, marks={0: '1 min', 1: '5 min', 2: '15 min', 3: '30 min', 4: 'hourly', 5: 'daily'}, value=[2]),
                             html.Button('resample', id='resample_button'),                
                     # interpolation
-                    html.Div([
-                        html.Button('calculate_average', id='calculate_average_button'), 
-                        html.Button('interpolate', id='interpolate_button'), 
-                        html.Button('accept interpolation', id='accept_interpolation_button'), 
-                    ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
                     # fill values
                     html.Div([html.Label("basic forward and backward fill"),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center', 'margin-top': '20px'}),
                     html.Div([
@@ -601,7 +598,7 @@ style={
                             style={'display': 'inline-block'}
                             )
                         ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center','gap': '10px'}),
-                    html.Div([html.Label("Interpolation Functions"),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center', 'margin-top': '20px'}),
+                    html.Div([html.Label("Non Detect"),], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'center', 'margin-top': '20px'}),
                     # dry indicator
                     html.Div([
                         html.Div([
@@ -1777,7 +1774,10 @@ def run_data_action(upload_clicks, export_clicks, df, site_selector_value, site,
                             workup_notes_main(period_df, parameter, site_sql_id, site)
                             desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning", "non_detect"]
                             df_export = period_df[[col for col in desired_order if col in period_df.columns]].copy()
-                            export_path = f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter}_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.csv"
+
+
+                       
+                            export_path = f"{user_config['directory']['user_temp_folder']}{site}_{parameter}_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.csv"
                             df_export.to_csv(export_path, index=False)
                 else:
                     # Fallback if no observation column found
@@ -1789,7 +1789,7 @@ def run_data_action(upload_clicks, export_clicks, df, site_selector_value, site,
                 
                 desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning", "non_detect"]
                 df_export = df[[col for col in desired_order if col in df.columns]].copy()
-                export_path = f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{site}_{parameter}_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.csv"
+                export_path = f"{user_config['directory']['user_temp_folder']}{site}_{parameter}_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.csv"
                 df_export.to_csv(export_path, index=False)
                 
             # sql upload

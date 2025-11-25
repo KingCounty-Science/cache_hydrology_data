@@ -132,7 +132,7 @@ def site_interpolate():
     # long term mont
     df_month = df.drop_duplicates(subset='lt_month')
     min_month = df_month.loc[df_month["lt_month_avg"] == df_month["lt_month_avg"].min(), "lt_month"].item()
-    print(min_month)
+    #print(min_month)
     df_month['relative_wy'] = df_month['y_month'].apply(lambda x: pd.Period(x, "M") - (int(min_month) -1) )
     df_month['relative_wy'] = df_month['relative_wy'].dt.strftime('%m')
     df_month = df_month.sort_values(by = ['relative_wy'])
@@ -144,7 +144,7 @@ def site_interpolate():
                     y=df_month["lt_month_avg"],
                     line=dict(color = color_map.get('mean_temperature', 'black'), width = 1),
                     name="min",showlegend=True,),row=3, col=2, secondary_y=False),
-    print(df_month)
+    #print(df_month)
     fig.show()
 
 def average_data(df, site, site_sql_id, parameter, start_date, end_date):

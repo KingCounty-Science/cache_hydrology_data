@@ -14,7 +14,7 @@ pd.options.mode.chained_assignment = None  # default='warn', None is no warn
 config = configparser.ConfigParser()
 # config.read(r'C:\Users\ihiggins\.spyder-py3\gdata_config.ini')
 config.read('gdata_config.ini')
-print("Run Start at "+str(pd.to_datetime('today'))+"")
+print("Workup Notes Run Start at "+str(pd.to_datetime('today'))+"")
 print("")
 #10.82.12.39
 server = "KCITSQLPRNRPX01"
@@ -103,7 +103,7 @@ def stage_workup_notes(observation_stage, site_sql_id, site):
     cur.close()
     conn.close()
 
-def workup_transactions(observation, site_sql_id, site, parameter):
+def workup_transactions(notes_df, observation, site_sql_id, site, parameter):
     observation_table = "tblWorkUpTransactions"
  
     sql_alchemy_connection = urllib.parse.quote_plus('DRIVER={'+driver+'}; SERVER='+server+'; DATABASE='+database+'; Trusted_Connection='+trusted_connection+';')
@@ -138,11 +138,12 @@ def workup_transactions(observation, site_sql_id, site, parameter):
     else:
         parameter_number = " "
 
+   
 # observation dataframe
     d = {'G_ID': [site_sql_id], 
         'WorkUp_Date': date.today(),
         "WorkedUp_By": "23",
-        'WorkUp_notes': [f"{site}_{parameter}_{observation['datetime'].iloc[-1]}.csv"],
+        'WorkUp_notes': [f"{site}_{parameter}_{notes_df['datetime'].iloc[0]}_{notes_df['datetime'].iloc[-1]}.csv"],
         'Start_Time': observation['datetime'].iloc[0],
         'End_Time': observation['datetime'].iloc[-1],
         'Parameter': parameter_number
@@ -150,7 +151,7 @@ def workup_transactions(observation, site_sql_id, site, parameter):
         }
     df = pd.DataFrame(data=d)
     print("workup notes for upload")
-    print(df)
+    #print(df)
     df.to_sql(observation_table, sql_engine, method=None, if_exists='append', index=False)
 
     cur.close()
@@ -165,20 +166,20 @@ def workup_notes_main(notes_df, parameter, site_sql_id, site):
         observation = notes_df.dropna(subset=['observation_stage'])
         q_workup_notes(q_observation, site_sql_id, site)
         stage_workup_notes(observation_stage, site_sql_id, site)
-        workup_transactions(observation, site_sql_id, site, parameter)
+        workup_transactions(notes_df, observation, site_sql_id, site, parameter)
         #set table name
         #stage_table = "tblFlowWorkupStageTracker"
         #q_table = "tblFlowWorkupRatingTracker"
     elif parameter == "LakeLevel" or parameter == "Piezometer" or parameter == "water_level" or parameter == "lake_level" or parameter == "groundwater_level":
         observation = notes_df.dropna(subset=['observation_stage'])
-        print("notes df")
-        print(notes_df)
-        print("observations")
-        print(observation)
-        workup_transactions(observation, site_sql_id, site, parameter)
+        #print("notes df")
+        #print(notes_df)
+        #print("observations")
+        #print(observation)
+        workup_transactions(notes_df, observation, site_sql_id, site, parameter)
     else:
         observation = notes_df.dropna(subset=['parameter_observation'])
-        workup_transactions(observation, site_sql_id, site, parameter)
+        workup_transactions(notes_df, observation, site_sql_id, site, parameter)
         
 
 
@@ -223,7 +224,7 @@ def excel_export(project, site_list, start_date, end_date):
     all_df = all_df.reindex(sorted(all_df.columns), axis=1)
     all_df.reset_index(inplace=True)
     all_df = all_df.sort_values(by='datetime', ascending=True)
-    print(all_df)
+    #print(all_df)
     all_df.to_csv(f"W:/STS/hydro/GAUGE/Temp/Ian's Temp/{project}_export_{datetime.today().strftime('%Y_%m_%d')}.csv", index=False, header= True)
     #all_df.py_tocsv().save_as(records=all_df.to_dict(orient='records'), dest_file_name=r"W:/STS/hydro/GAUGE/Temp/Ian's Temp/taylor_creek.xlsx")
     #all_df.to_excel(, index=False)
