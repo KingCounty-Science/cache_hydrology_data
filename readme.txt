@@ -2,6 +2,7 @@
 Repo restarted Feb 14 2025 to avoid gitlog issue
 
 A. # deactivate and delete venv before creating a new venv
+B. This uses Python 3.19.3 newer versions may not work
 
 1. To create a virtual environment 
     py/python -m venv .venv

@@ -104,7 +104,7 @@ color_map = {
     }
 
 # site code = site_sql_id
-def parameter_graph(df, site_selector_value, site_code, site_name, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics):
+def parameter_graph(df, site_selector_value, site_code, site_name, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics, show_provisional_indicator):
     #df = df.sort_values(by='datetime', ascending=True) # order is required for observations to plot
     data_axis = True # uncorrected data
     base_parameter_axis = False # water level/stage for discharge
@@ -391,6 +391,22 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
                 name=f"precentile_05_q", showlegend=True, hovertemplate='<b>%{meta}</b> <br><b>date:</b> %{x|%Y-%m-%d %H:%M}<br><b>value:</b> %{y}<extra></extra>',
                 meta=f"precentile_05_q",), row=row_count, col=1, secondary_y=derived_parameter_axis)
 
+    if show_provisional_indicator == True and "provisional" in df.columns:
+        # Create the mask once
+        mask = (df['provisional'] == "1") | (df['provisional'] == 1)
+
+        # Calculate y-value
+        y_value = df['corrected_data'].min() - 0.5
+
+        fig.add_trace(go.Scatter(
+            x=df.loc[mask, "datetime"],
+            y=[y_value] * mask.sum(),  # Repeat the value for each point
+            mode='markers', 
+            marker=dict(color="rgba(223, 133, 71)", size=6, opacity=.9), 
+            name="provisional data",
+            showlegend=True
+        ), row=row_count, col=1, secondary_y=derived_parameter_axis)
+           
     # dry indicator
     #if f"dry_indicator" in df.columns and data_axis != "none":
     #    
@@ -463,7 +479,7 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
         annotation_x = 0.00 #0.05 # allows offset for when year is displatyed on axis (left and right 0 is left justified 0.5 is in the middle)
         annotation_y = -.07 # up and down (started with .9)
        
-
+        
         df_min = df.loc[df['datetime'] == df['datetime'].min()]
         df_max = df.loc[df['datetime'] == df['datetime'].max()]
         annotation_axis = base_parameter_axis
@@ -569,8 +585,8 @@ def parameter_graph(df, site_selector_value, site_code, site_name, parameter, co
     
     return fig
 
-def cache_graph_export(df, site_selector_value, site_code, site_name, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics):
-    fig = parameter_graph(df, site_selector_value, site_code, site_name, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
+def cache_graph_export(df, site_selector_value, site_code, site_name, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics, show_provisional_indicator):
+    fig = parameter_graph(df, site_selector_value, site_code, site_name, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics, show_provisional_indicator)
    
     #fig.update_layout(autosize=False) # larer fig height will go off page
     fig.update_layout(autosize=True, height = 800, width = 1800) # larer fig height will go off page

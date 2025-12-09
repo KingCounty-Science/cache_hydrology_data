@@ -685,6 +685,8 @@ style={
                                 daq.NumericInput(id = "primary_max", label='primary max',labelPosition='bottom',value=" ",),
                                 daq.NumericInput(id = "secondary_min", label='secondary min',labelPosition='bottom',value=" ",),
                                 daq.NumericInput(id = "secondary_max", label='secondary max',labelPosition='bottom',value=" "),
+                            html.Label("show provisional indicator"),
+                            daq.ToggleSwitch(id="show_provisional_indicator", value=True),
                         ]),
                         dbc.ModalFooter(dbc.Button("close", id="close-graphing-options-button", className="ml-auto")),], id="graphing-options", size="xl",),   
 
@@ -1609,14 +1611,15 @@ def correct_data(import_data, obs_rows, comparison_data, parameter, site, site_s
         State("display_statistics", "value"),
         State('query_start_date', 'data'),  # obs a
         State('query_end_date', 'data'), # obs b),
+        Input("show_provisional_indicator", 'value'),
 )
-def graph(graph_realtime_update, df, site_selector_value, site, site_sql_id, parameter, comparison_data, rating, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics, query_start_date, query_end_date):
+def graph(graph_realtime_update, df, site_selector_value, site, site_sql_id, parameter, comparison_data, rating, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics, query_start_date, query_end_date, show_provisional_indicator):
     """when its all said and done this is pretty inefficient; it started this way because i was exporting the plotly graph, now i export a seperate matplotlib graph """
     
     from data_cleaning import reformat_data, parameter_calculation
   
     from graph_2 import cache_graph_export
-   
+
     df = pd.DataFrame(df)
     comparison_data = pd.read_json(comparison_data, orient = "split")
     #selected_data = selectedData
@@ -1631,7 +1634,7 @@ def graph(graph_realtime_update, df, site_selector_value, site, site_sql_id, par
         if query_end_date == "" or not query_end_date:
             query_end_date = df['datetime'].max()
         #fig = html.Div(dcc.Graph(figure = go.Figure()), style = {'width': '100%', 'display': 'inline-block'})
-        fig = cache_graph_export(df, site_sql_id, site_selector_value, site, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics)
+        fig = cache_graph_export(df, site_sql_id, site_selector_value, site, parameter, comparison_data, primary_min, primary_max, secondary_min, secondary_max, normalize_data, statistics, display_statistics, show_provisional_indicator)
         #fig.update_layout(dragmode='lasso', hovermode='closest',) # allows for selection
         
         return fig #selected_points
@@ -1795,15 +1798,20 @@ def run_data_action(upload_clicks, export_clicks, df, site_selector_value, site,
             # sql upload
             if trigger_id == "upload_data_button":
                 from sql_upload import full_upload
-                workup_notes_main(df, parameter, site_sql_id, site)  # Fixed: use df instead of undefined period_df    
-                # Use the same df_export logic as above
+                workup_df = df.copy()
                 desired_order = ["datetime", "data", "corrected_data", "discharge", "estimate", "warning", "non_detect"]
                 df_final = df[[col for col in desired_order if col in df.columns]].copy()
 
+                
                 if parameter not in ["water_level", "groundwater_level"] and "non_detect" in df_final.columns:  # drop non_detect if there isnt a non detect column in db yet
                     df_final = df_final.drop(columns=["non_detect"])
                     
                 full_upload(df_final, parameter, site_sql_id, 7)
+
+                workup_notes_main(workup_df, parameter, site_sql_id, site)  # Fixed: use df instead of undefined period_df    
+                # Use the same df_export logic as above
+                
+
                 print("Upload complete")
                 return "  uploaded"
             else:

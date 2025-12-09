@@ -28,11 +28,11 @@ import plotly.graph_objs as go
 import datetime as dt
 # long call back 
 # https://dash.plotly.com/long-callbacks
-## launch a new web browser
+## launch a new web browse
 from web_browser import launch_web_broswer
 # launch_web_broswer()
 import dash_bootstrap_components as dbc
-from waitress import serve
+#from waitress import serve
 from scipy.signal import find_peaks, find_peaks_cwt
 #import dash_core_components as dcc
 from dash import dcc
